@@ -611,6 +611,17 @@ Mehmet Kaya; mehmet@example.com; 05557654321; Ali (5), Zeynep (3)"></textarea>
   </div>
 </div>
 
+<!-- MODAL: Kampanya Detay -->
+<div id="kampanyaDetailModal" class="modal-overlay">
+  <div class="modal" style="max-width: 800px;">
+    <h2 id="kampanyaDetailTitle">Kampanya Detayı</h2>
+    <div id="kampanyaDetailContent"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('kampanyaDetailModal')">Kapat</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ============================================================
 // FIREBASE CONFIG - BCKA-Site
@@ -1088,8 +1099,284 @@ async function toggleKampanya(id, yeniDurum) {
 }
 
 async function viewKampanya(id) {
-  // TODO: detay modal - v2
-  alert('Detay görünümü v2 sürümünde eklenecek.');
+  const kampanyaDoc = await db.collection('anket_kampanyalari').doc(id).get();
+  const k = kampanyaDoc.data();
+  const tokensSnap = await db.collection('anket_kampanyalari').doc(id).collection('tokens').get();
+  const yanitlarSnap = await db.collection('anket_kampanyalari').doc(id).collection('yanitlar').get();
+
+  // Veli listesini çek (token → email eşleştirmesi için)
+  const velilerSnap = await db.collection('kayitli_veliler').where('durum', '==', 'aktif').get();
+  const velilerMap = {};
+  velilerSnap.forEach(v => { velilerMap[v.data().email] = v.data(); });
+
+  // Token istatistikleri
+  let kullanilan = 0, bekleyen = 0;
+  const tokenList = [];
+  tokensSnap.forEach(t => {
+    const td = t.data();
+    if (td.kullanildi) kullanilan++;
+    else bekleyen++;
+    tokenList.push({ token: t.id, ...td });
+  });
+
+  // Yanıt istatistikleri
+  let toplamPuan = 0, sayiPuan = 0, toplamNPS = 0, sayiNPS = 0;
+  const etiketSayac = {};
+  yanitlarSnap.forEach(y => {
+    const c = y.data().cevaplar || {};
+    if (typeof c.memnuniyet_genel === 'number') { toplamPuan += c.memnuniyet_genel; sayiPuan++; }
+    if (typeof c.nps === 'number') { toplamNPS += c.nps; sayiNPS++; }
+    (c.olumlu_etiketler || []).forEach(e => { etiketSayac[e] = (etiketSayac[e] || 0) + 1; });
+  });
+  const ortPuan = sayiPuan > 0 ? (toplamPuan / sayiPuan).toFixed(1) : '-';
+  const ortNPS = sayiNPS > 0 ? (toplamNPS / sayiNPS).toFixed(1) : '-';
+  const yanıtOranı = tokensSnap.size > 0 ? ((kullanilan / tokensSnap.size) * 100).toFixed(0) : 0;
+
+  // Etiket listesi sıralı
+  const etiketMap = {
+    montessori: 'Montessori', orman: 'Orman okulu', ingilizce: 'İngilizce',
+    atolye: 'Atölyeler', ogretmen: 'Öğretmenler', iletisim: 'İletişim',
+    guvenlik: 'Güvenlik', yemek: 'Yemek', bahce: 'Bahçe', etkinlik: 'Etkinlikler'
+  };
+  const etiketSirali = Object.entries(etiketSayac).sort((a, b) => b[1] - a[1]);
+
+  // Token tablosu — her token için veli bilgisi bul
+  // Not: token ↔ veli eşleştirmesi sadece admin için, anonim yanıtlarla bağlantısı yok
+  let tokenTableRows = '';
+  // Kampanya oluşturulurken token sırası = veli sırası olduğu için
+  // Firestore'dan eşleştirme yapamayız (tasarım gereği), ama token linklerini gösterebiliriz
+  tokenList.forEach(t => {
+    const durumBadge = t.kullanildi
+      ? '<span class="badge badge-success">Doldurdu</span>'
+      : '<span class="badge badge-warning">Bekliyor</span>';
+    const link = `https://anket.bircicekkoleji.com/m/${t.token}`;
+    tokenTableRows += `<tr>
+      <td style="font-family:monospace;font-size:12px;">${t.token}</td>
+      <td>${durumBadge}</td>
+      <td>
+        <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('${link}')">📋 Kopyala</button>
+        ${!t.kullanildi ? `<button class="btn btn-sm btn-primary" onclick="resendToken('${id}', '${t.token}')">📧 Tekrar Gönder</button>` : ''}
+      </td>
+    </tr>`;
+  });
+
+  const html = `
+    <div style="display:grid;gap:16px;">
+      <!-- Kampanya Bilgileri -->
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:13px;color:var(--text-light);">📅 ${k.baslangic} → ${k.bitis}</div>
+          ${k.aciklama ? `<div style="font-size:13px;color:var(--text-light);margin-top:4px;">${k.aciklama}</div>` : ''}
+        </div>
+        <span class="badge ${k.aktif ? 'badge-success' : 'badge-warning'}">${k.aktif ? 'Aktif' : 'Kapalı'}</span>
+      </div>
+
+      <!-- İstatistik Kartları -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">
+        <div style="background:var(--bg);padding:14px;border-radius:10px;text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:var(--primary);">${tokensSnap.size}</div>
+          <div style="font-size:11px;color:var(--text-light);">Toplam Davet</div>
+        </div>
+        <div style="background:var(--bg);padding:14px;border-radius:10px;text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:var(--success);">${kullanilan}</div>
+          <div style="font-size:11px;color:var(--text-light);">Dolduran</div>
+        </div>
+        <div style="background:var(--bg);padding:14px;border-radius:10px;text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:var(--warning);">${bekleyen}</div>
+          <div style="font-size:11px;color:var(--text-light);">Bekleyen</div>
+        </div>
+        <div style="background:var(--bg);padding:14px;border-radius:10px;text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:var(--primary);">${yanıtOranı}%</div>
+          <div style="font-size:11px;color:var(--text-light);">Katılım Oranı</div>
+        </div>
+        <div style="background:var(--bg);padding:14px;border-radius:10px;text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:var(--primary);">${ortPuan}</div>
+          <div style="font-size:11px;color:var(--text-light);">Ort. Memnuniyet</div>
+        </div>
+        <div style="background:var(--bg);padding:14px;border-radius:10px;text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:${ortNPS >= 9 ? 'var(--success)' : ortNPS >= 7 ? 'var(--warning)' : 'var(--danger)'};">${ortNPS}</div>
+          <div style="font-size:11px;color:var(--text-light);">Ort. NPS</div>
+        </div>
+      </div>
+
+      ${etiketSirali.length > 0 ? `
+      <!-- En Çok Beğenilen -->
+      <div style="background:var(--bg);padding:16px;border-radius:10px;">
+        <h3 style="font-size:14px;margin-bottom:10px;color:var(--primary);">👍 En Çok Beğenilen Yönler</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${etiketSirali.map(([key, count]) => `<span style="background:#d4edda;color:#155724;padding:4px 10px;border-radius:16px;font-size:12px;">${etiketMap[key] || key} (${count})</span>`).join('')}
+        </div>
+      </div>` : ''}
+
+      <!-- Yazılı Yanıtlar Özeti -->
+      ${yanitlarSnap.size > 0 ? `
+      <div style="background:var(--bg);padding:16px;border-radius:10px;">
+        <h3 style="font-size:14px;margin-bottom:10px;color:var(--primary);">💬 Yazılı Geri Bildirimler</h3>
+        <div style="max-height:200px;overflow-y:auto;">
+          ${yanitlarSnap.docs.map(y => {
+            const c = y.data().cevaplar || {};
+            const parts = [];
+            if (c.olumlu) parts.push(`<div style="font-size:13px;margin-bottom:6px;">👍 <em>"${c.olumlu}"</em></div>`);
+            if (c.gelistirilebilir) parts.push(`<div style="font-size:13px;margin-bottom:6px;">💭 <em>"${c.gelistirilebilir}"</em></div>`);
+            if (c.oneri) parts.push(`<div style="font-size:13px;margin-bottom:6px;">💡 <em>"${c.oneri}"</em></div>`);
+            if (c.son_not) parts.push(`<div style="font-size:13px;margin-bottom:6px;">💌 <em>"${c.son_not}"</em></div>`);
+            return parts.length ? `<div style="padding:8px 0;border-bottom:1px solid var(--border);">${parts.join('')}</div>` : '';
+          }).filter(Boolean).join('')}
+        </div>
+      </div>` : ''}
+
+      <!-- Token Listesi -->
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <h3 style="font-size:14px;color:var(--primary);">🔗 Anket Linkleri</h3>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-sm btn-primary" onclick="resendAllPending('${id}')">📧 Bekleyenlere Tekrar Gönder</button>
+            <button class="btn btn-sm btn-secondary" onclick="exportTokens('${id}')">📊 CSV İndir</button>
+          </div>
+        </div>
+        <div style="max-height:250px;overflow-y:auto;">
+          <table>
+            <thead><tr><th>Token</th><th>Durum</th><th>İşlem</th></tr></thead>
+            <tbody>${tokenTableRows}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('kampanyaDetailTitle').textContent = k.ad;
+  document.getElementById('kampanyaDetailContent').innerHTML = html;
+  document.getElementById('kampanyaDetailModal').classList.add('active');
+}
+
+// Link kopyala
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    const orig = btn.textContent;
+    btn.textContent = '✅ Kopyalandı';
+    setTimeout(() => btn.textContent = orig, 1500);
+  });
+}
+
+// Tek token'a tekrar mail gönder
+async function resendToken(kampanyaId, token) {
+  const kampanyaDoc = await db.collection('anket_kampanyalari').doc(kampanyaId).get();
+  const k = kampanyaDoc.data();
+
+  // Velileri getir — hangi veli bu token'a ait bilmiyoruz (anonimlik)
+  // Bu yüzden admin'den email isteyelim
+  const email = prompt('Bu linki göndermek istediğiniz e-posta adresini girin:');
+  if (!email) return;
+  const adsoyad = prompt('Velinin adı soyadı:') || 'Değerli Velimiz';
+
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = 'Gönderiliyor...';
+
+  try {
+    const response = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'tekil_davet',
+        email: email,
+        adsoyad: adsoyad,
+        token: token,
+        kampanya_ad: k.ad,
+        base_url: 'https://anket.bircicekkoleji.com'
+      })
+    });
+    const result = await response.json();
+    if (result.success) {
+      btn.textContent = '✅ Gönderildi';
+      setTimeout(() => { btn.textContent = '📧 Tekrar Gönder'; btn.disabled = false; }, 2000);
+    } else {
+      alert('Hata: ' + result.error);
+      btn.textContent = '📧 Tekrar Gönder';
+      btn.disabled = false;
+    }
+  } catch (err) {
+    alert('Gönderim hatası: ' + err.message);
+    btn.textContent = '📧 Tekrar Gönder';
+    btn.disabled = false;
+  }
+}
+
+// Bekleyen tüm tokenlara toplu mail gönder
+async function resendAllPending(kampanyaId) {
+  if (!confirm('Anketi henüz doldurmamış tüm velilere tekrar mail göndermek istiyor musunuz?')) return;
+
+  const kampanyaDoc = await db.collection('anket_kampanyalari').doc(kampanyaId).get();
+  const k = kampanyaDoc.data();
+  const tokensSnap = await db.collection('anket_kampanyalari').doc(kampanyaId).collection('tokens').where('kullanildi', '==', false).get();
+  const velilerSnap = await db.collection('kayitli_veliler').where('durum', '==', 'aktif').get();
+
+  // Veli email listesi
+  const veliler = [];
+  velilerSnap.forEach(v => veliler.push(v.data()));
+
+  // Token'ları velilerle eşleştir (sıra ile — kampanya oluşturulurken aynı sırada üretildi)
+  // Alternatif: tüm aktif velilere pending token gönder
+  const pendingTokens = [];
+  tokensSnap.forEach(t => pendingTokens.push(t.id));
+
+  if (pendingTokens.length === 0) {
+    alert('Bekleyen token yok — herkes anketi doldurmuş!');
+    return;
+  }
+
+  // Her pending token için bir veli lazım. Admin'den toplu eşleştirme istemek yerine,
+  // tüm aktif velilere sırayla gönderelim (eksik olanlar için)
+  const emails = prompt(`${pendingTokens.length} bekleyen link var.\nGönderilecek e-posta adreslerini virgülle ayırarak girin:\n(veya boş bırakıp iptal edin)`);
+  if (!emails) return;
+
+  const emailList = emails.split(',').map(e => e.trim()).filter(Boolean);
+  if (emailList.length === 0) return;
+
+  const pairs = [];
+  for (let i = 0; i < Math.min(emailList.length, pendingTokens.length); i++) {
+    const veli = veliler.find(v => v.email === emailList[i]);
+    pairs.push({
+      email: emailList[i],
+      token: pendingTokens[i],
+      adsoyad: veli?.adsoyad || 'Değerli Velimiz'
+    });
+  }
+
+  try {
+    const response = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'kampanya_davet',
+        kampanya_ad: k.ad,
+        kampanya_aciklama: 'Hatırlatma: Anketimizi henüz doldurmadınız. Görüşleriniz bizim için çok değerli.',
+        base_url: 'https://anket.bircicekkoleji.com',
+        veliler: pairs
+      })
+    });
+    const result = await response.json();
+    alert(`${result.gonderildi || 0}/${pairs.length} mail gönderildi.`);
+  } catch (err) {
+    alert('Hata: ' + err.message);
+  }
+}
+
+// Token listesini CSV olarak indir
+async function exportTokens(kampanyaId) {
+  const tokensSnap = await db.collection('anket_kampanyalari').doc(kampanyaId).collection('tokens').get();
+  let csv = 'Token;Link;Durum\n';
+  tokensSnap.forEach(t => {
+    const td = t.data();
+    csv += `${t.id};https://anket.bircicekkoleji.com/m/${t.id};${td.kullanildi ? 'Dolduruldu' : 'Bekliyor'}\n`;
+  });
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `kampanya_tokenlar_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
 }
 
 // ============================================================
