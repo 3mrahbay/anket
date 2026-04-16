@@ -631,6 +631,9 @@ const db = firebase.firestore();
 // Authorized admin emails
 const ADMIN_EMAILS = ['eposta@bircicekkoleji.com', 'emrahby@gmail.com'];
 
+// Apps Script Web App URL
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzLJAjMH9W_AJXGI7Vl6YT5ovuhkjTRvLWMgULvxYEj6B1OWQExWnxZgtywFVm0THPXAg/exec';
+
 // ============================================================
 // AUTH
 // ============================================================
@@ -1013,9 +1016,13 @@ async function saveKampanya() {
 
   if (!ad) { alert('Kampanya adı gerekli.'); return; }
 
+  const btn = document.querySelector('#kampanyaModal .btn-primary');
+  btn.disabled = true;
+  btn.textContent = 'Oluşturuluyor...';
+
   try {
     const veliler = await db.collection('kayitli_veliler').where('durum', '==', 'aktif').get();
-    if (veliler.empty) { alert('Aktif veli bulunamadı.'); return; }
+    if (veliler.empty) { alert('Aktif veli bulunamadı.'); btn.disabled = false; btn.textContent = 'Kampanyayı Oluştur'; return; }
 
     const ref = await db.collection('anket_kampanyalari').add({
       ad, baslangic, bitis, aciklama, aktif: true,
@@ -1034,32 +1041,43 @@ async function saveKampanya() {
     });
     await batch.commit();
 
-    // E-posta gönder (EmailJS)
+    // E-posta gönder (Apps Script)
     if (sendmail) {
-      const settings = await db.collection('ayarlar').doc('emailjs').get();
-      const s = settings.exists ? settings.data() : {};
-      if (s.public_key) emailjs.init(s.public_key);
-      let gonderildi = 0;
-      for (const t of tokens) {
-        try {
-          await emailjs.send(s.service_id, s.template_anket, {
-            to_email: t.email, to_name: t.adsoyad,
+      btn.textContent = 'Mailler gönderiliyor...';
+      try {
+        const response = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({
+            action: 'kampanya_davet',
             kampanya_ad: ad,
-            anket_url: `https://anket.bircicekkoleji.com/m/${t.token}`
-          });
-          gonderildi++;
-        } catch (e) { console.error('Mail hatası:', e); }
+            kampanya_aciklama: aciklama,
+            base_url: 'https://anket.bircicekkoleji.com',
+            veliler: tokens
+          })
+        });
+        const result = await response.json();
+        if (result.success) {
+          alert(`Kampanya oluşturuldu! ✅\n${result.gonderildi}/${result.toplam} e-posta gönderildi.${result.hatalar?.length ? '\n\nHatalı: ' + result.hatalar.map(h => h.email).join(', ') : ''}`);
+        } else {
+          alert('Kampanya oluşturuldu ama mail gönderilemedi: ' + result.error);
+        }
+      } catch (mailErr) {
+        alert('Kampanya oluşturuldu, tokenlar üretildi. Ancak mail gönderiminde hata: ' + mailErr.message);
       }
-      alert(`Kampanya oluşturuldu. ${gonderildi}/${tokens.length} e-posta gönderildi.`);
     } else {
-      alert(`Kampanya oluşturuldu. ${tokens.length} token üretildi.`);
+      alert(`Kampanya oluşturuldu. ${tokens.length} token üretildi (mail gönderilmedi).`);
     }
 
+    btn.disabled = false;
+    btn.textContent = 'Kampanyayı Oluştur';
     closeModal('kampanyaModal');
     loadKampanyalar();
     loadDashboard();
   } catch (err) {
     alert('Hata: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = 'Kampanyayı Oluştur';
   }
 }
 
