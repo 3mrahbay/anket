@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memnuniyet Anketi - Bir Çiçek Koleji</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<style>
+:root {
+  --primary: #2d5f3f;
+  --primary-light: #4a8563;
+  --bg: #faf7f2;
+  --card: #ffffff;
+  --text: #2c3e2d;
+  --text-light: #6b7c6d;
+  --text-muted: #9ba89c;
+  --border: #e8e4dc;
+  --danger: #c0392b;
+  --success: #27ae60;
+  --warning: #e67e22;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+.container { max-width: 720px; margin: 0 auto; padding: 24px 16px; }
+
+header {
+  text-align: center;
+  padding: 32px 16px 24px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  color: white;
+}
+header .logo { font-size: 40px; margin-bottom: 8px; }
+header h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+header p { font-size: 14px; opacity: 0.92; max-width: 500px; margin: 0 auto; }
+
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(45,95,63,0.08);
+  padding: 28px 24px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+}
+.card h2 { font-size: 18px; color: var(--primary); margin-bottom: 8px; font-weight: 700; }
+.card p.sub { color: var(--text-light); font-size: 14px; margin-bottom: 20px; }
+
+.form-group { margin-bottom: 20px; }
+.form-group label {
+  display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--text);
+}
+.form-group label .required { color: var(--danger); }
+.form-group label .hint { font-weight: 400; color: var(--text-light); font-size: 12px; margin-left: 4px; }
+.form-group textarea {
+  width: 100%; padding: 12px 14px; border: 2px solid var(--border); border-radius: 10px;
+  font-size: 15px; font-family: inherit; min-height: 90px; resize: vertical;
+  transition: border-color 0.2s, box-shadow 0.2s; background: white;
+}
+.form-group textarea:focus {
+  outline: none; border-color: var(--primary-light);
+  box-shadow: 0 0 0 3px rgba(74,133,99,0.15);
+}
+
+.rating-scale {
+  display: flex; gap: 4px; flex-wrap: wrap; justify-content: space-between; margin-top: 8px;
+}
+.rating-scale label { flex: 1; min-width: 0; display: block; cursor: pointer; font-weight: 400; margin: 0; }
+.rating-scale input[type="radio"] { display: none; }
+.rating-scale .rating-btn {
+  display: block; padding: 10px 4px; text-align: center;
+  border: 2px solid var(--border); border-radius: 8px;
+  font-size: 14px; font-weight: 600; color: var(--text-light);
+  transition: all 0.15s; background: white;
+}
+.rating-scale input[type="radio"]:checked + .rating-btn {
+  background: var(--primary); color: white; border-color: var(--primary); transform: scale(1.05);
+}
+.rating-scale .rating-btn:hover { border-color: var(--primary-light); }
+.rating-labels {
+  display: flex; justify-content: space-between; font-size: 11px;
+  color: var(--text-muted); margin-top: 4px; padding: 0 4px;
+}
+
+.checkbox-grid { display: grid; gap: 8px; }
+.checkbox-option {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+  font-size: 14px; transition: all 0.15s;
+}
+.checkbox-option:hover { background: #f7faf8; }
+.checkbox-option input { margin-top: 2px; accent-color: var(--primary); }
+.checkbox-option.selected { background: #f0f7f2; border-color: var(--primary-light); }
+
+.btn-submit {
+  width: 100%; padding: 16px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  color: white; border: none; border-radius: 12px;
+  font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 16px;
+  transition: all 0.2s; letter-spacing: 0.3px;
+}
+.btn-submit:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(45,95,63,0.25); }
+.btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.info-box {
+  background: #f0f7f2; border: 1px solid #c8e0d0; border-radius: 10px;
+  padding: 16px; margin-bottom: 20px; font-size: 13px; color: var(--text);
+}
+.info-box strong { color: var(--primary); }
+
+.error-screen, .success-screen, .loading-screen { text-align: center; padding: 60px 24px; }
+.error-screen .icon-lg, .success-screen .icon-lg { font-size: 72px; margin-bottom: 16px; }
+.success-screen h2 { color: var(--primary); margin-bottom: 12px; }
+.error-screen h2 { color: var(--danger); margin-bottom: 12px; }
+
+.spinner {
+  width: 40px; height: 40px; border: 3px solid var(--border);
+  border-top-color: var(--primary); border-radius: 50%;
+  animation: spin 1s linear infinite; margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.hidden { display: none !important; }
+footer { text-align: center; padding: 24px 16px; color: var(--text-muted); font-size: 12px; }
+
+@media (max-width: 640px) {
+  .card { padding: 20px 16px; }
+  header h1 { font-size: 19px; }
+  .rating-scale .rating-btn { padding: 8px 2px; font-size: 13px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🌸</div>
+  <h1>Bir Çiçek Koleji Anaokulu</h1>
+  <p>Veli Memnuniyet Anketi</p>
+</header>
+
+<div class="container">
+
+  <!-- LOADING -->
+  <div id="loadingScreen" class="loading-screen">
+    <div class="spinner"></div>
+    <p>Anket yükleniyor...</p>
+  </div>
+
+  <!-- ERROR -->
+  <div id="errorScreen" class="card error-screen hidden">
+    <div class="icon-lg">⚠️</div>
+    <h2 id="errorTitle">Geçersiz Link</h2>
+    <p id="errorMsg" style="color: var(--text-light); max-width: 420px; margin: 0 auto;">Bu anket linki geçersiz veya daha önce kullanılmış olabilir.</p>
+  </div>
+
+  <!-- SURVEY -->
+  <div id="surveyScreen" class="hidden">
+
+    <div class="info-box">
+      🔒 <strong>Bu anket tamamen anonimdir.</strong> Yanıtlarınız kimliğinizle eşleştirilmez.
+      Linkiniz yalnızca tek kullanımlıktır ve sadece doğrulama amacıyla kullanılır.
+    </div>
+
+    <div class="card">
+      <h2><span class="icon">⭐</span> Genel Memnuniyet</h2>
+      <p class="sub">Okulumuz hakkındaki genel deneyiminizi değerlendirin.</p>
+
+      <div class="form-group">
+        <label>Genel memnuniyetiniz <span class="required">*</span></label>
+        <div class="rating-scale" id="rating-genel"></div>
+        <div class="rating-labels"><span>1 - Hiç memnun değilim</span><span>10 - Çok memnunum</span></div>
+      </div>
+
+      <div class="form-group">
+        <label>Eğitim kalitesi <span class="required">*</span></label>
+        <div class="rating-scale" id="rating-egitim"></div>
+        <div class="rating-labels"><span>1 - Kötü</span><span>10 - Mükemmel</span></div>
+      </div>
+
+      <div class="form-group">
+        <label>Öğretmen-veli iletişimi <span class="required">*</span></label>
+        <div class="rating-scale" id="rating-iletisim"></div>
+        <div class="rating-labels"><span>1 - Kötü</span><span>10 - Mükemmel</span></div>
+      </div>
+
+      <div class="form-group">
+        <label>Fiziki ortam ve güvenlik <span class="required">*</span></label>
+        <div class="rating-scale" id="rating-fizik"></div>
+        <div class="rating-labels"><span>1 - Kötü</span><span>10 - Mükemmel</span></div>
+      </div>
+
+      <div class="form-group">
+        <label>Okulumuzu bir arkadaşınıza tavsiye eder misiniz? (NPS) <span class="required">*</span></label>
+        <div class="rating-scale" id="rating-nps"></div>
+        <div class="rating-labels"><span>0 - Asla</span><span>10 - Kesinlikle</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="icon">👍</span> Olumlu Bulduğunuz Yönler</h2>
+      <p class="sub">Beğendiğiniz tüm unsurları işaretleyebilirsiniz.</p>
+
+      <div class="checkbox-grid" id="olumlu-checkboxes">
+        <label class="checkbox-option"><input type="checkbox" value="montessori"><span>Montessori eğitim yaklaşımı</span></label>
+        <label class="checkbox-option"><input type="checkbox" value="orman"><span>Orman okulu etkinlikleri</span></label>
+        <label class="checkbox-option"><input type="checkbox" value="ingilizce"><span>İngilizce eğitimi</span></label>
+        <label class="checkbox-option"><input type="checkbox" value="atolye"><span>Marangozhane / atölyeler</span></label>
+        <label class="checkbox-option"><input type="checkbox" value="ogretmen"><span>Öğretmenlerin ilgisi ve kalitesi</span></label>
+        <label class="checkbox-option"><input type="checkbox" value="iletisim"><span>Okul-veli iletişimi</span></label>
+        <label class="checkbox-option"><input type="checkbox" value="guvenlik"><span>Güvenlik ve hijyen</span></label>
+        <label class="checkbox-option"><input type="checkbox" value="yemek"><span>Yemek kalitesi</span></label>
+        <label class="checkbox-option"><input type="checkbox" value="bahce"><span>Bahçe ve dış alanlar</span></label>
+        <label class="checkbox-option"><input type="checkbox" value="etkinlik"><span>Etkinlikler ve sosyal aktiviteler</span></label>
+      </div>
+
+      <div class="form-group" style="margin-top: 16px;">
+        <label>Yazılı olarak eklemek istedikleriniz <span class="hint">(isteğe bağlı)</span></label>
+        <textarea id="olumlu" placeholder="Özellikle beğendiğiniz bir nokta varsa yazabilirsiniz..."></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="icon">💭</span> Geliştirilebilecek Yönler</h2>
+      <p class="sub">Eleştirileriniz bizim için değerlidir. Samimi olmaktan çekinmeyin.</p>
+
+      <div class="form-group">
+        <label>Okulumuzda geliştirilebileceğini düşündüğünüz noktalar <span class="hint">(isteğe bağlı)</span></label>
+        <textarea id="gelistirilebilir" placeholder="Örn: Veli toplantıları daha sık olabilir..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>"Şöyle olsaydı daha iyi olurdu" dediğiniz bir konu <span class="hint">(isteğe bağlı)</span></label>
+        <textarea id="oneri" placeholder="Örn: Yaz okulu programı olsaydı güzel olurdu..."></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="icon">💌</span> Son Düşünceleriniz</h2>
+      <div class="form-group">
+        <label>Eklemek istediğiniz başka bir şey? <span class="hint">(isteğe bağlı)</span></label>
+        <textarea id="son_not" placeholder="Aklınıza gelen her şeyi yazabilirsiniz..."></textarea>
+      </div>
+    </div>
+
+    <button class="btn-submit" onclick="submitSurvey()">📬 Anketi Gönder</button>
+
+    <footer>
+      <p>Zaman ayırdığınız için teşekkür ederiz 🌸</p>
+    </footer>
+  </div>
+
+  <!-- SUCCESS -->
+  <div id="successScreen" class="card success-screen hidden">
+    <div class="icon-lg">🌸</div>
+    <h2>Teşekkür Ederiz!</h2>
+    <p style="color: var(--text-light); max-width: 420px; margin: 0 auto 24px;">
+      Geri bildiriminiz tamamen anonim olarak kaydedildi. Görüşleriniz okulumuzun gelişimine doğrudan katkı sağlayacaktır.
+    </p>
+    <a href="https://bircicekkoleji.com" style="display: inline-block; padding: 12px 24px; background: var(--primary); color: white; text-decoration: none; border-radius: 10px; font-weight: 600;">Ana Sayfaya Dön</a>
+  </div>
+
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyARlqAoh-HRBC9xPwj7qRgG-IuZFSH39Uc",
+  authDomain: "bcka-site.firebaseapp.com",
+  projectId: "bcka-site",
+  storageBucket: "bcka-site.firebasestorage.app",
+  messagingSenderId: "736581475783",
+  appId: "1:736581475783:web:5729a05ed4d05f1d1d0de2",
+  measurementId: "G-PMZ7T84FB5"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// URL'den token ve kampanya bilgisini çek
+let currentToken = null;
+let currentKampanyaId = null;
+
+// Rating oluştur
+function buildRatingScale(containerId, name, max, startAt = 1) {
+  const container = document.getElementById(containerId);
+  let html = '';
+  for (let i = startAt; i <= max; i++) {
+    html += `<label><input type="radio" name="${name}" value="${i}"><span class="rating-btn">${i}</span></label>`;
+  }
+  container.innerHTML = html;
+}
+buildRatingScale('rating-genel', 'memnuniyet_genel', 10);
+buildRatingScale('rating-egitim', 'memnuniyet_egitim', 10);
+buildRatingScale('rating-iletisim', 'memnuniyet_iletisim', 10);
+buildRatingScale('rating-fizik', 'memnuniyet_fizik', 10);
+buildRatingScale('rating-nps', 'nps', 10, 0);
+
+// Checkbox visual
+document.addEventListener('change', (e) => {
+  if (e.target.type === 'checkbox' && e.target.closest('.checkbox-option')) {
+    e.target.closest('.checkbox-option').classList.toggle('selected', e.target.checked);
+  }
+});
+
+// Sayfa yüklenince token doğrula
+async function init() {
+  const path = window.location.pathname;
+  const match = path.match(/\/m\/([a-z0-9]+)/i);
+
+  if (!match) {
+    showError('Geçersiz Link', 'Bu sayfa yalnızca anket linkiyle erişilebilir.');
+    return;
+  }
+
+  currentToken = match[1];
+
+  try {
+    // Tüm aktif kampanyalarda bu token'ı ara
+    const kampanyalar = await db.collection('anket_kampanyalari').where('aktif', '==', true).get();
+
+    let tokenFound = false;
+    for (const kampanya of kampanyalar.docs) {
+      const tokenDoc = await db.collection('anket_kampanyalari').doc(kampanya.id).collection('tokens').doc(currentToken).get();
+      if (tokenDoc.exists) {
+        if (tokenDoc.data().kullanildi) {
+          showError('Anket Tamamlanmış', 'Bu anket linki daha önce kullanılmış. Her link yalnızca bir kez kullanılabilir.');
+          return;
+        }
+        currentKampanyaId = kampanya.id;
+        tokenFound = true;
+        break;
+      }
+    }
+
+    if (!tokenFound) {
+      showError('Geçersiz Link', 'Bu anket linki geçersiz veya süresi dolmuş olabilir.');
+      return;
+    }
+
+    // Token geçerli — anketi göster
+    document.getElementById('loadingScreen').classList.add('hidden');
+    document.getElementById('surveyScreen').classList.remove('hidden');
+
+  } catch (err) {
+    console.error('Init hatası:', err);
+    showError('Bağlantı Hatası', 'Sunucuya bağlanılamadı. Lütfen sayfayı yenileyin.');
+  }
+}
+
+function showError(title, msg) {
+  document.getElementById('loadingScreen').classList.add('hidden');
+  document.getElementById('errorTitle').textContent = title;
+  document.getElementById('errorMsg').textContent = msg;
+  document.getElementById('errorScreen').classList.remove('hidden');
+}
+
+async function submitSurvey() {
+  // Değerleri topla
+  const getValue = (name) => {
+    const el = document.querySelector(`input[name="${name}"]:checked`);
+    return el ? parseInt(el.value) : null;
+  };
+
+  const memnuniyet_genel = getValue('memnuniyet_genel');
+  const memnuniyet_egitim = getValue('memnuniyet_egitim');
+  const memnuniyet_iletisim = getValue('memnuniyet_iletisim');
+  const memnuniyet_fizik = getValue('memnuniyet_fizik');
+  const nps = getValue('nps');
+
+  // Validasyon
+  if (!memnuniyet_genel) { alert('Lütfen genel memnuniyetinizi puanlayın.'); return; }
+  if (!memnuniyet_egitim) { alert('Lütfen eğitim kalitesini puanlayın.'); return; }
+  if (!memnuniyet_iletisim) { alert('Lütfen öğretmen-veli iletişimini puanlayın.'); return; }
+  if (!memnuniyet_fizik) { alert('Lütfen fiziki ortamı puanlayın.'); return; }
+  if (nps === null) { alert('Lütfen tavsiye puanınızı seçin.'); return; }
+
+  const cevaplar = {
+    memnuniyet_genel,
+    memnuniyet_egitim,
+    memnuniyet_iletisim,
+    memnuniyet_fizik,
+    nps,
+    olumlu_etiketler: Array.from(document.querySelectorAll('#olumlu-checkboxes input:checked')).map(i => i.value),
+    olumlu: document.getElementById('olumlu').value.trim(),
+    gelistirilebilir: document.getElementById('gelistirilebilir').value.trim(),
+    oneri: document.getElementById('oneri').value.trim(),
+    son_not: document.getElementById('son_not').value.trim()
+  };
+
+  const btn = document.querySelector('.btn-submit');
+  btn.disabled = true;
+  btn.textContent = 'Gönderiliyor...';
+
+  try {
+    // 1. Token'ı "kullanıldı" olarak işaretle
+    await db.collection('anket_kampanyalari').doc(currentKampanyaId)
+      .collection('tokens').doc(currentToken)
+      .update({
+        kullanildi: true,
+        kullanim_tarihi: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+    // 2. Yanıtı AYRI bir belge olarak kaydet (token ile bağlantısı YOK — anonimlik)
+    await db.collection('anket_kampanyalari').doc(currentKampanyaId)
+      .collection('yanitlar').add({
+        cevaplar,
+        kampanyaId: currentKampanyaId,
+        tarih: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+    // Başarılı
+    document.getElementById('surveyScreen').classList.add('hidden');
+    document.getElementById('successScreen').classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  } catch (err) {
+    console.error('Gönderim hatası:', err);
+    alert('Gönderim sırasında bir hata oluştu: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = '📬 Anketi Gönder';
+  }
+}
+
+// Başlat
+init();
+</script>
+
+</body>
+</html>
