@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Görüşme Sonrası Değerlendirme - Bir Çiçek Koleji</title>
+<meta name="description" content="Okulumuza yaptığınız ziyaret sonrası görüşlerinizi paylaşın.">
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<style>
+:root {
+  --primary: #2d5f3f;
+  --primary-light: #4a8563;
+  --primary-dark: #1a3d28;
+  --accent: #d4a574;
+  --accent-warm: #c19660;
+  --bg: #faf7f2;
+  --card: #ffffff;
+  --text: #2c3e2d;
+  --text-light: #6b7c6d;
+  --text-muted: #9ba89c;
+  --border: #e8e4dc;
+  --border-focus: #4a8563;
+  --danger: #c0392b;
+  --success: #27ae60;
+  --shadow: 0 2px 12px rgba(45, 95, 63, 0.08);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+.container { max-width: 720px; margin: 0 auto; padding: 24px 16px; }
+
+/* Header */
+header {
+  text-align: center;
+  padding: 32px 16px 24px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  color: white;
+  margin-bottom: 0;
+}
+header .logo { font-size: 40px; margin-bottom: 8px; }
+header h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+header p { font-size: 14px; opacity: 0.92; max-width: 500px; margin: 0 auto; }
+
+/* Cards */
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 28px 24px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+}
+.card h2 {
+  font-size: 18px;
+  color: var(--primary);
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+.card h2 .icon { margin-right: 8px; }
+.card p.sub { color: var(--text-light); font-size: 14px; margin-bottom: 20px; }
+
+/* Login section */
+.login-section { text-align: center; }
+.login-section .icon-lg { font-size: 56px; margin-bottom: 16px; }
+.btn-google {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: white;
+  color: #3c4043;
+  border: 2px solid var(--border);
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 16px;
+}
+.btn-google:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-color: #4285f4; }
+.btn-google svg { width: 20px; height: 20px; }
+
+/* User badge */
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f0f7f2;
+  border: 1px solid #c8e0d0;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+.user-badge img { width: 36px; height: 36px; border-radius: 50%; }
+.user-badge .info { flex: 1; }
+.user-badge .name { font-weight: 600; font-size: 14px; color: var(--text); }
+.user-badge .email { font-size: 12px; color: var(--text-light); }
+.user-badge button {
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-light);
+}
+
+/* Form fields */
+.form-group { margin-bottom: 20px; }
+.form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+.form-group label .required { color: var(--danger); }
+.form-group label .hint { font-weight: 400; color: var(--text-light); font-size: 12px; margin-left: 4px; }
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  font-size: 15px;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: white;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary-light);
+  box-shadow: 0 0 0 3px rgba(74, 133, 99, 0.15);
+}
+.form-group textarea { min-height: 90px; resize: vertical; }
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Rating scales */
+.rating-scale {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+.rating-scale label {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  cursor: pointer;
+  font-weight: 400;
+  margin: 0;
+}
+.rating-scale input[type="radio"] { display: none; }
+.rating-scale .rating-btn {
+  display: block;
+  padding: 10px 4px;
+  text-align: center;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-light);
+  transition: all 0.15s;
+  background: white;
+}
+.rating-scale input[type="radio"]:checked + .rating-btn {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  transform: scale(1.05);
+}
+.rating-scale .rating-btn:hover { border-color: var(--primary-light); }
+.rating-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  padding: 0 4px;
+}
+
+/* Radio groups */
+.radio-group { display: flex; flex-direction: column; gap: 8px; }
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 14px;
+  background: white;
+}
+.radio-option:hover { border-color: var(--primary-light); background: #f7faf8; }
+.radio-option input[type="radio"] { margin: 0; accent-color: var(--primary); }
+.radio-option.selected {
+  border-color: var(--primary);
+  background: #f0f7f2;
+  font-weight: 600;
+}
+
+/* Checkbox grid */
+.checkbox-grid { display: grid; gap: 8px; }
+.checkbox-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s;
+}
+.checkbox-option:hover { background: #f7faf8; }
+.checkbox-option input { margin-top: 2px; accent-color: var(--primary); }
+.checkbox-option.selected { background: #f0f7f2; border-color: var(--primary-light); }
+
+/* KVKK */
+.kvkk-box {
+  background: #fdfbf7;
+  border: 1px solid var(--accent);
+  border-left: 4px solid var(--accent);
+  padding: 16px;
+  border-radius: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+  font-family: 'Segoe UI', sans-serif;
+}
+.kvkk-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  background: #fdfbf7;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.kvkk-checkbox input { margin-top: 3px; accent-color: var(--primary); transform: scale(1.2); }
+.kvkk-checkbox .req { color: var(--danger); }
+
+/* Submit button */
+.btn-submit {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 16px;
+  transition: all 0.2s;
+  letter-spacing: 0.3px;
+}
+.btn-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(45, 95, 63, 0.25);
+}
+.btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Success */
+.success-screen {
+  text-align: center;
+  padding: 60px 24px;
+}
+.success-screen .icon-lg { font-size: 72px; margin-bottom: 16px; }
+.success-screen h2 { color: var(--primary); margin-bottom: 12px; font-size: 22px; }
+.success-screen p { color: var(--text-light); margin-bottom: 24px; max-width: 420px; margin-left: auto; margin-right: auto; }
+
+/* Error */
+.error-banner {
+  background: #fee;
+  color: var(--danger);
+  border: 1px solid #fcc;
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+/* Loading */
+.loading-screen {
+  text-align: center;
+  padding: 80px 24px;
+  color: var(--text-light);
+}
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.hidden { display: none !important; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .form-row { grid-template-columns: 1fr; }
+  .card { padding: 20px 16px; }
+  header h1 { font-size: 19px; }
+  .rating-scale .rating-btn { padding: 8px 2px; font-size: 13px; }
+}
+
+/* Footer */
+footer {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+footer a { color: var(--primary); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🌸</div>
+  <h1>Bir Çiçek Koleji Anaokulu</h1>
+  <p>Görüşme Sonrası Değerlendirme Anketi</p>
+</header>
+
+<div class="container">
+
+  <!-- LOADING -->
+  <div id="loadingScreen" class="loading-screen">
+    <div class="spinner"></div>
+    <p>Yükleniyor...</p>
+  </div>
+
+  <!-- LOGIN -->
+  <div id="loginScreen" class="card login-section hidden">
+    <div class="icon-lg">👋</div>
+    <h2 style="justify-content: center;">Hoş Geldiniz</h2>
+    <p class="sub" style="text-align: center;">
+      Görüşlerinizi almak bizim için çok değerli.<br>
+      Ankete başlamak için Google hesabınızla giriş yapın.
+    </p>
+    <button class="btn-google" onclick="signInGoogle()">
+      <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Google ile Giriş Yap
+    </button>
+    <p style="font-size: 12px; color: var(--text-muted); margin-top: 16px;">
+      Girişiniz yalnızca kimlik doğrulama amacıyla kullanılır.
+    </p>
+  </div>
+
+  <!-- SURVEY FORM -->
+  <div id="surveyScreen" class="hidden">
+    <div class="user-badge">
+      <img id="userPhoto" src="" alt="">
+      <div class="info">
+        <div class="name" id="userName"></div>
+        <div class="email" id="userEmail"></div>
+      </div>
+      <button onclick="signOut()">Çıkış</button>
+    </div>
+
+    <div id="errorBanner" class="error-banner hidden"></div>
+
+    <!-- BÖLÜM 1: Veli Bilgileri -->
+    <div class="card">
+      <h2><span class="icon">👤</span>Sizin ve Çocuğunuzun Bilgileri</h2>
+      <p class="sub">Görüşmeye gelmiş olmanızı doğrulamak için bu bilgiler zorunludur.</p>
+
+      <div class="form-group">
+        <label>Ad Soyadınız <span class="required">*</span></label>
+        <input type="text" id="adsoyad" placeholder="Örn: Ayşe Yılmaz" required>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Telefon <span class="required">*</span></label>
+          <input type="tel" id="telefon" placeholder="0555 123 45 67" required>
+        </div>
+        <div class="form-group">
+          <label>E-posta</label>
+          <input type="email" id="email" readonly style="background: #f5f5f5; cursor: not-allowed;">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Çocuğunuzun Adı <span class="required">*</span></label>
+          <input type="text" id="cocuk_ad" placeholder="Örn: Elif" required>
+        </div>
+        <div class="form-group">
+          <label>Yaşı <span class="required">*</span></label>
+          <select id="cocuk_yas" required>
+            <option value="">Seçiniz</option>
+            <option value="2">2 yaş</option>
+            <option value="3">3 yaş</option>
+            <option value="4">4 yaş</option>
+            <option value="5">5 yaş</option>
+            <option value="6">6 yaş</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- BÖLÜM 2: Görüşme Bilgileri -->
+    <div class="card">
+      <h2><span class="icon">🤝</span>Görüşme Bilgileri</h2>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Görüşme Tarihi <span class="required">*</span></label>
+          <input type="date" id="gorusme_tarihi" required>
+        </div>
+        <div class="form-group">
+          <label>Görüşmeyi Yapan <span class="required">*</span></label>
+          <select id="gorusmeci" required>
+            <option value="">Seçiniz</option>
+            <option value="Emrah Bey">Emrah Bey</option>
+            <option value="Okul Müdürü">Okul Müdürü</option>
+            <option value="Yardımcı Müdür">Yardımcı Müdür</option>
+            <option value="Pedagog">Pedagog</option>
+            <option value="Hatırlamıyorum">Hatırlamıyorum</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Görüşme Şekli</label>
+        <div class="radio-group">
+          <label class="radio-option">
+            <input type="radio" name="gorusme_sekli" value="yuz_yuze">
+            <span>🏫 Yüz yüze (okula geldim)</span>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="gorusme_sekli" value="online">
+            <span>💻 Online (video görüşme)</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- BÖLÜM 3: Memnuniyet -->
+    <div class="card">
+      <h2><span class="icon">⭐</span>Genel Değerlendirme</h2>
+      <p class="sub">Lütfen deneyiminizi değerlendirin. (1 = Çok kötü, 10 = Mükemmel)</p>
+
+      <div class="form-group">
+        <label>Görüşmeden genel memnuniyetiniz <span class="required">*</span></label>
+        <div class="rating-scale" id="rating-gorusme"></div>
+        <div class="rating-labels"><span>1 - Kötü</span><span>10 - Mükemmel</span></div>
+      </div>
+
+      <div class="form-group">
+        <label>Okulu gördüğünüz kadarıyla genel memnuniyetiniz <span class="required">*</span></label>
+        <div class="rating-scale" id="rating-okul"></div>
+        <div class="rating-labels"><span>1 - Kötü</span><span>10 - Mükemmel</span></div>
+      </div>
+
+      <div class="form-group">
+        <label>Bir arkadaşınıza okulumuzu tavsiye eder misiniz? <span class="required">*</span></label>
+        <div class="rating-scale" id="rating-nps"></div>
+        <div class="rating-labels"><span>0 - Asla</span><span>10 - Kesinlikle</span></div>
+      </div>
+    </div>
+
+    <!-- BÖLÜM 4: Olumlu Yönler -->
+    <div class="card">
+      <h2><span class="icon">👍</span>Olumlu Bulduğunuz Yönler</h2>
+      <p class="sub">Beğendiğiniz tüm unsurları işaretleyebilirsiniz.</p>
+
+      <div class="checkbox-grid" id="olumlu-checkboxes">
+        <label class="checkbox-option"><input type="checkbox" value="iletisim"><span>Personelin iletişimi ve ilgisi</span></label>
+        <label class="checkbox-option"><input type="checkbox" value="fizik"><span>Okul binası ve fiziki şartlar</span></label>
+        <label class="checkbox-option"><input type="checkbox" value="bahce"><span>Bahçe ve dış alanlar</span></label>
+        <label class="checkbox-option"><input type="checkbox" value="montessori"><span>Montessori yaklaşımı</span></label>
+        <label class="checkbox-option"><input type="checkbox" value="orman"><span>Orman okulu etkinlikleri</span></label>
+        <label class="checkbox-option"><input type="checkbox" value="ingilizce"><span>İngilizce eğitimi</span></label>
+        <label class="checkbox-option"><input type="checkbox" value="atolye"><span>Marangozhane / atölyeler</span></label>
+        <label class="checkbox-option"><input type="checkbox" value="guvenlik"><span>Güvenlik ve hijyen</span></label>
+        <label class="checkbox-option"><input type="checkbox" value="fiyat"><span>Fiyat-kalite dengesi</span></label>
+        <label class="checkbox-option"><input type="checkbox" value="konum"><span>Konum / ulaşım kolaylığı</span></label>
+      </div>
+
+      <div class="form-group" style="margin-top: 16px;">
+        <label>Yazılı olarak eklemek istedikleriniz <span class="hint">(isteğe bağlı)</span></label>
+        <textarea id="olumlu" placeholder="Özellikle beğendiğiniz bir nokta varsa yazabilirsiniz..."></textarea>
+      </div>
+    </div>
+
+    <!-- BÖLÜM 5: Geliştirilebilir -->
+    <div class="card">
+      <h2><span class="icon">💭</span>Geliştirilebilecek Yönler</h2>
+      <p class="sub">Eleştirileriniz bizim için değerlidir. Açık ve samimi olmaktan çekinmeyin.</p>
+
+      <div class="form-group">
+        <label>Okulumuzda geliştirilebileceğini düşündüğünüz noktalar <span class="hint">(isteğe bağlı)</span></label>
+        <textarea id="gelistirilebilir" placeholder="Örn: Web sitesindeki bilgiler daha detaylı olabilir..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>"Şöyle olsaydı daha iyi olurdu" dediğiniz bir konu <span class="hint">(isteğe bağlı)</span></label>
+        <textarea id="oneri" placeholder="Örn: Görüşme sırasında sınıfları uzun uzun görebilmek isterdim..."></textarea>
+      </div>
+    </div>
+
+    <!-- BÖLÜM 6: Kayıt Niyeti -->
+    <div class="card">
+      <h2><span class="icon">🎯</span>Kayıt Durumu</h2>
+
+      <div class="form-group">
+        <label>Çocuğunuzu okulumuza kaydettirmeyi düşünüyor musunuz? <span class="required">*</span></label>
+        <div class="radio-group">
+          <label class="radio-option">
+            <input type="radio" name="kayit_niyeti" value="evet" required>
+            <span>✅ Evet, kayıt yaptırmayı düşünüyorum</span>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="kayit_niyeti" value="kararsiz" required>
+            <span>🤔 Kararsızım / düşünüyorum</span>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="kayit_niyeti" value="hayir" required>
+            <span>❌ Hayır, şu an için kayıt düşünmüyorum</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group" id="neden-group" style="display: none;">
+        <label>Kararsızlığınızın/tercih etmemenizin nedenini paylaşır mısınız? <span class="hint">(isteğe bağlı ama çok değerli)</span></label>
+        <textarea id="neden" placeholder="Bizim için en değerli bilgidir, samimi olabilirsiniz..."></textarea>
+      </div>
+    </div>
+
+    <!-- BÖLÜM 7: Son Notlar -->
+    <div class="card">
+      <h2><span class="icon">💌</span>Son Düşünceleriniz</h2>
+      <div class="form-group">
+        <label>Eklemek istediğiniz başka bir şey? <span class="hint">(isteğe bağlı)</span></label>
+        <textarea id="son_not" placeholder="Aklınıza gelen her şeyi yazabilirsiniz..."></textarea>
+      </div>
+    </div>
+
+    <!-- BÖLÜM 8: KVKK -->
+    <div class="card">
+      <h2><span class="icon">⚖️</span>KVKK Aydınlatma Metni</h2>
+      <p class="sub">Aşağıdaki metni okuyup onaylamadan anketi gönderemezsiniz.</p>
+
+      <div class="kvkk-box" id="kvkkMetin">Yükleniyor...</div>
+
+      <label class="kvkk-checkbox">
+        <input type="checkbox" id="kvkk_onay" required>
+        <span><strong>KVKK Aydınlatma Metnini okudum, anladım ve kişisel verilerimin belirtilen amaçlarla işlenmesine açık rıza veriyorum.</strong> <span class="req">*</span></span>
+      </label>
+    </div>
+
+    <button class="btn-submit" onclick="submitSurvey()">📬 Anketi Gönder</button>
+
+    <footer>
+      <p>Zaman ayırdığınız için teşekkür ederiz 🌸</p>
+    </footer>
+  </div>
+
+  <!-- SUCCESS -->
+  <div id="successScreen" class="card success-screen hidden">
+    <div class="icon-lg">🌸</div>
+    <h2>Teşekkür Ederiz!</h2>
+    <p>Görüşleriniz bizim için çok değerli. Okulumuzu geliştirirken geri bildiriminizi dikkate alacağız.</p>
+    <p style="margin-top: 16px; font-size: 13px;">Bir Çiçek Koleji Ailesi olarak,<br>bizi tercih ettiğiniz için teşekkürler. 💚</p>
+    <a href="https://bircicekkoleji.com" style="display: inline-block; margin-top: 24px; padding: 12px 24px; background: var(--primary); color: white; text-decoration: none; border-radius: 10px; font-weight: 600;">Ana Sayfaya Dön</a>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// FIREBASE CONFIG - BCKA-Site (ADMIN DOSYASIYLA AYNI OLMALI)
+// ============================================================
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "bcka-site.firebaseapp.com",
+  projectId: "bcka-site",
+  storageBucket: "bcka-site.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// ============================================================
+// RATING SCALES OLUŞTUR
+// ============================================================
+function buildRatingScale(containerId, name, max, startAt = 1) {
+  const container = document.getElementById(containerId);
+  let html = '';
+  for (let i = startAt; i <= max; i++) {
+    html += `<label>
+      <input type="radio" name="${name}" value="${i}">
+      <span class="rating-btn">${i}</span>
+    </label>`;
+  }
+  container.innerHTML = html;
+}
+buildRatingScale('rating-gorusme', 'memnuniyet_gorusme', 10);
+buildRatingScale('rating-okul', 'memnuniyet_genel', 10);
+buildRatingScale('rating-nps', 'nps', 10, 0);
+
+// ============================================================
+// RADIO/CHECKBOX VISUAL SELECTION
+// ============================================================
+document.addEventListener('change', (e) => {
+  if (e.target.type === 'radio' && e.target.closest('.radio-group')) {
+    e.target.closest('.radio-group').querySelectorAll('.radio-option').forEach(o => o.classList.remove('selected'));
+    e.target.closest('.radio-option')?.classList.add('selected');
+  }
+  if (e.target.type === 'checkbox' && e.target.closest('.checkbox-option')) {
+    e.target.closest('.checkbox-option').classList.toggle('selected', e.target.checked);
+  }
+  // Kayıt niyeti "kararsız/hayır" ise neden alanını göster
+  if (e.target.name === 'kayit_niyeti') {
+    document.getElementById('neden-group').style.display = e.target.value === 'evet' ? 'none' : 'block';
+  }
+});
+
+// ============================================================
+// AUTH
+// ============================================================
+function signInGoogle() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  auth.signInWithPopup(provider).catch(err => {
+    showError('Giriş yapılamadı: ' + err.message);
+  });
+}
+
+function signOut() {
+  auth.signOut().then(() => {
+    document.getElementById('surveyScreen').classList.add('hidden');
+    document.getElementById('loginScreen').classList.remove('hidden');
+  });
+}
+
+auth.onAuthStateChanged(user => {
+  document.getElementById('loadingScreen').classList.add('hidden');
+  if (user) {
+    showSurvey(user);
+  } else {
+    document.getElementById('loginScreen').classList.remove('hidden');
+  }
+});
+
+function showSurvey(user) {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('surveyScreen').classList.remove('hidden');
+  document.getElementById('userName').textContent = user.displayName || 'Kullanıcı';
+  document.getElementById('userEmail').textContent = user.email;
+  document.getElementById('email').value = user.email;
+  document.getElementById('userPhoto').src = user.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.displayName || 'U') + '&background=2d5f3f&color=fff';
+
+  // Görüşme tarihi varsayılanı: bugün
+  document.getElementById('gorusme_tarihi').valueAsDate = new Date();
+
+  // KVKK metnini yükle
+  loadKvkk();
+}
+
+// ============================================================
+// KVKK METNİNİ YÜKLE
+// ============================================================
+async function loadKvkk() {
+  try {
+    const doc = await db.collection('ayarlar').doc('kvkk').get();
+    if (doc.exists && doc.data().gorusme_metni) {
+      document.getElementById('kvkkMetin').textContent = doc.data().gorusme_metni;
+    } else {
+      document.getElementById('kvkkMetin').textContent = 'KVKK metni henüz yüklenmedi. Lütfen admin ile iletişime geçin.';
+    }
+  } catch (err) {
+    console.error('KVKK yükleme hatası:', err);
+    document.getElementById('kvkkMetin').textContent = 'KVKK metni yüklenemedi. Sayfayı yenileyiniz.';
+  }
+}
+
+// ============================================================
+// HATA GÖSTER
+// ============================================================
+function showError(msg) {
+  const banner = document.getElementById('errorBanner');
+  banner.textContent = msg;
+  banner.classList.remove('hidden');
+  banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  setTimeout(() => banner.classList.add('hidden'), 5000);
+}
+
+// ============================================================
+// ANKETİ GÖNDER
+// ============================================================
+async function submitSurvey() {
+  const user = auth.currentUser;
+  if (!user) { showError('Oturum süresi dolmuş. Lütfen tekrar giriş yapın.'); return; }
+
+  // Değerleri topla
+  const cevaplar = {
+    adsoyad: document.getElementById('adsoyad').value.trim(),
+    email: user.email,
+    telefon: document.getElementById('telefon').value.trim(),
+    cocuk_ad: document.getElementById('cocuk_ad').value.trim(),
+    cocuk_yas: document.getElementById('cocuk_yas').value,
+    gorusme_tarihi: document.getElementById('gorusme_tarihi').value,
+    gorusmeci: document.getElementById('gorusmeci').value,
+    gorusme_sekli: document.querySelector('input[name="gorusme_sekli"]:checked')?.value || '',
+    memnuniyet_gorusme: parseInt(document.querySelector('input[name="memnuniyet_gorusme"]:checked')?.value || 0),
+    memnuniyet_genel: parseInt(document.querySelector('input[name="memnuniyet_genel"]:checked')?.value || 0),
+    nps: document.querySelector('input[name="nps"]:checked')?.value !== undefined ? parseInt(document.querySelector('input[name="nps"]:checked').value) : -1,
+    olumlu_etiketler: Array.from(document.querySelectorAll('#olumlu-checkboxes input:checked')).map(i => i.value),
+    olumlu: document.getElementById('olumlu').value.trim(),
+    gelistirilebilir: document.getElementById('gelistirilebilir').value.trim(),
+    oneri: document.getElementById('oneri').value.trim(),
+    kayit_niyeti: document.querySelector('input[name="kayit_niyeti"]:checked')?.value || '',
+    neden: document.getElementById('neden').value.trim(),
+    son_not: document.getElementById('son_not').value.trim(),
+    google_display_name: user.displayName || '',
+    google_uid: user.uid
+  };
+
+  // Validasyon
+  const zorunlular = {
+    adsoyad: 'Ad Soyad',
+    telefon: 'Telefon',
+    cocuk_ad: 'Çocuk Adı',
+    cocuk_yas: 'Çocuk Yaşı',
+    gorusme_tarihi: 'Görüşme Tarihi',
+    gorusmeci: 'Görüşmeyi Yapan',
+    kayit_niyeti: 'Kayıt Niyeti'
+  };
+  for (const [key, label] of Object.entries(zorunlular)) {
+    if (!cevaplar[key]) { showError(`Lütfen "${label}" alanını doldurun.`); return; }
+  }
+  if (!cevaplar.memnuniyet_gorusme) { showError('Lütfen görüşme memnuniyetinizi puanlayın.'); return; }
+  if (!cevaplar.memnuniyet_genel) { showError('Lütfen okul memnuniyetinizi puanlayın.'); return; }
+  if (cevaplar.nps < 0) { showError('Lütfen tavsiye puanınızı seçin.'); return; }
+
+  if (!document.getElementById('kvkk_onay').checked) {
+    showError('Anketi gönderebilmek için KVKK onayı vermeniz gerekmektedir.');
+    return;
+  }
+
+  const btn = document.querySelector('.btn-submit');
+  btn.disabled = true;
+  btn.textContent = 'Gönderiliyor...';
+
+  try {
+    await db.collection('gorusme_yanitlari').add({
+      cevaplar,
+      kvkk_onay: true,
+      kvkk_onay_tarihi: firebase.firestore.FieldValue.serverTimestamp(),
+      dogrulandi: false,
+      tarih: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    document.getElementById('surveyScreen').classList.add('hidden');
+    document.getElementById('successScreen').classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (err) {
+    showError('Gönderim hatası: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = '📬 Anketi Gönder';
+  }
+}
+</script>
+
+</body>
+</html>
