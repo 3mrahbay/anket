@@ -599,6 +599,17 @@ Mehmet Kaya; mehmet@example.com; 05557654321; Ali (5), Zeynep (3)"></textarea>
   </div>
 </div>
 
+<!-- MODAL: Görüşme Detay -->
+<div id="gorusmeDetailModal" class="modal-overlay">
+  <div class="modal" style="max-width: 700px;">
+    <h2 id="gorusmeDetailTitle">Görüşme Yanıt Detayı</h2>
+    <div id="gorusmeDetailContent"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('gorusmeDetailModal')">Kapat</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ============================================================
 // FIREBASE CONFIG - BCKA-Site
@@ -1134,12 +1145,136 @@ async function viewGorusme(id) {
   const doc = await db.collection('gorusme_yanitlari').doc(id).get();
   const d = doc.data();
   const c = d.cevaplar || {};
-  let metin = `📅 Tarih: ${d.tarih?.toDate?.()?.toLocaleString('tr-TR') || '-'}\n\n`;
-  metin += `👤 ${c.adsoyad || '-'}\n📧 ${c.email || '-'}\n📞 ${c.telefon || '-'}\n👶 ${c.cocuk_ad || '-'} (${c.cocuk_yas || '-'} yaş)\n\n`;
-  metin += `🤝 Görüşmeci: ${c.gorusmeci || '-'}\n📅 Görüşme Tarihi: ${c.gorusme_tarihi || '-'}\n\n`;
-  metin += `⭐ Genel Memnuniyet: ${c.memnuniyet_genel ?? '-'}/10\n🤝 Görüşme Memnuniyeti: ${c.memnuniyet_gorusme ?? '-'}/10\n📊 NPS: ${c.nps ?? '-'}/10\n\n`;
-  metin += `👍 Olumlu:\n${c.olumlu || '-'}\n\n👎 Geliştirilebilir:\n${c.gelistirilebilir || '-'}\n\n💡 Öneriler:\n${c.oneri || '-'}\n\n🎯 Kayıt Niyeti: ${c.kayit_niyeti || '-'}\n`;
-  alert(metin);
+  const tarih = d.tarih?.toDate?.()?.toLocaleString('tr-TR') || '-';
+  const kvkkTarih = d.kvkk_onay_tarihi?.toDate?.()?.toLocaleString('tr-TR') || '-';
+
+  // Olumlu etiketler
+  const etiketMap = {
+    iletisim: 'Personelin iletişimi',
+    fizik: 'Okul binası ve fiziki şartlar',
+    bahce: 'Bahçe ve dış alanlar',
+    montessori: 'Montessori yaklaşımı',
+    orman: 'Orman okulu etkinlikleri',
+    ingilizce: 'İngilizce eğitimi',
+    atolye: 'Marangozhane / atölyeler',
+    guvenlik: 'Güvenlik ve hijyen',
+    fiyat: 'Fiyat-kalite dengesi',
+    konum: 'Konum / ulaşım kolaylığı'
+  };
+  const etiketler = (c.olumlu_etiketler || []).map(e => etiketMap[e] || e);
+
+  // Kayıt niyeti badge
+  const niyetRenk = c.kayit_niyeti === 'evet' ? '#27ae60' : c.kayit_niyeti === 'hayir' ? '#c0392b' : '#e67e22';
+  const niyetMetin = c.kayit_niyeti === 'evet' ? 'Evet, kayıt düşünüyor' : c.kayit_niyeti === 'hayir' ? 'Hayır' : 'Kararsız';
+
+  // Görüşme şekli
+  const sekil = c.gorusme_sekli === 'yuz_yuze' ? '🏫 Yüz yüze' : c.gorusme_sekli === 'online' ? '💻 Online' : '-';
+
+  // Doğrulama durumu
+  const dogruBadge = d.dogrulandi
+    ? `<span style="background:#d4edda;color:#155724;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600;">✓ Doğrulandı</span>`
+    : `<span style="background:#fff3cd;color:#856404;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600;">⏳ Bekliyor</span>`;
+
+  const html = `
+    <div style="display:grid;gap:16px;">
+      <!-- Üst Bilgi -->
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <span style="font-size:13px;color:var(--text-light);">📅 ${tarih}</span>
+        ${dogruBadge}
+      </div>
+
+      <!-- Veli Bilgileri -->
+      <div style="background:var(--bg);padding:16px;border-radius:10px;">
+        <h3 style="font-size:14px;margin-bottom:10px;color:var(--primary);">👤 Veli Bilgileri</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:14px;">
+          <div><strong>Ad Soyad:</strong> ${c.adsoyad || '-'}</div>
+          <div><strong>E-posta:</strong> ${c.email || '-'}</div>
+          <div><strong>Telefon:</strong> ${c.telefon || '-'}</div>
+          <div><strong>Google Hesabı:</strong> ${c.google_display_name || '-'}</div>
+        </div>
+      </div>
+
+      <!-- Çocuk ve Görüşme -->
+      <div style="background:var(--bg);padding:16px;border-radius:10px;">
+        <h3 style="font-size:14px;margin-bottom:10px;color:var(--primary);">👶 Çocuk & Görüşme</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:14px;">
+          <div><strong>Çocuk Adı:</strong> ${c.cocuk_ad || '-'}</div>
+          <div><strong>Yaşı:</strong> ${c.cocuk_yas || '-'}</div>
+          <div><strong>Görüşmeci:</strong> ${c.gorusmeci || '-'}</div>
+          <div><strong>Görüşme Tarihi:</strong> ${c.gorusme_tarihi || '-'}</div>
+          <div><strong>Görüşme Şekli:</strong> ${sekil}</div>
+        </div>
+      </div>
+
+      <!-- Puanlar -->
+      <div style="background:var(--bg);padding:16px;border-radius:10px;">
+        <h3 style="font-size:14px;margin-bottom:12px;color:var(--primary);">⭐ Puanlar</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center;">
+          <div style="background:white;padding:12px;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:28px;font-weight:700;color:var(--primary);">${c.memnuniyet_gorusme ?? '-'}</div>
+            <div style="font-size:11px;color:var(--text-light);margin-top:4px;">Görüşme Memnuniyeti</div>
+          </div>
+          <div style="background:white;padding:12px;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:28px;font-weight:700;color:var(--primary);">${c.memnuniyet_genel ?? '-'}</div>
+            <div style="font-size:11px;color:var(--text-light);margin-top:4px;">Okul Memnuniyeti</div>
+          </div>
+          <div style="background:white;padding:12px;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:28px;font-weight:700;color:${c.nps >= 9 ? '#27ae60' : c.nps >= 7 ? '#e67e22' : '#c0392b'};">${c.nps ?? '-'}</div>
+            <div style="font-size:11px;color:var(--text-light);margin-top:4px;">NPS (Tavsiye)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Olumlu Etiketler -->
+      ${etiketler.length > 0 ? `
+      <div style="background:var(--bg);padding:16px;border-radius:10px;">
+        <h3 style="font-size:14px;margin-bottom:10px;color:var(--primary);">👍 Olumlu Bulunan Yönler</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${etiketler.map(e => `<span style="background:#d4edda;color:#155724;padding:4px 10px;border-radius:16px;font-size:12px;">${e}</span>`).join('')}
+        </div>
+        ${c.olumlu ? `<p style="margin-top:10px;font-size:14px;color:var(--text);font-style:italic;">"${c.olumlu}"</p>` : ''}
+      </div>` : ''}
+
+      <!-- Geliştirilebilir -->
+      ${c.gelistirilebilir ? `
+      <div style="background:#fff8f0;padding:16px;border-radius:10px;border-left:4px solid var(--warning);">
+        <h3 style="font-size:14px;margin-bottom:8px;color:var(--warning);">💭 Geliştirilebilecek Yönler</h3>
+        <p style="font-size:14px;">${c.gelistirilebilir}</p>
+      </div>` : ''}
+
+      <!-- Öneriler -->
+      ${c.oneri ? `
+      <div style="background:#f0f4ff;padding:16px;border-radius:10px;border-left:4px solid #3498db;">
+        <h3 style="font-size:14px;margin-bottom:8px;color:#3498db;">💡 Öneriler</h3>
+        <p style="font-size:14px;">${c.oneri}</p>
+      </div>` : ''}
+
+      <!-- Kayıt Niyeti -->
+      <div style="background:var(--bg);padding:16px;border-radius:10px;">
+        <h3 style="font-size:14px;margin-bottom:10px;color:var(--primary);">🎯 Kayıt Durumu</h3>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="background:${niyetRenk};color:white;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;">${niyetMetin}</span>
+        </div>
+        ${c.neden ? `<p style="margin-top:10px;font-size:14px;color:var(--text);font-style:italic;">Neden: "${c.neden}"</p>` : ''}
+      </div>
+
+      <!-- Son Not -->
+      ${c.son_not ? `
+      <div style="background:var(--bg);padding:16px;border-radius:10px;">
+        <h3 style="font-size:14px;margin-bottom:8px;color:var(--primary);">💌 Son Düşünceler</h3>
+        <p style="font-size:14px;">${c.son_not}</p>
+      </div>` : ''}
+
+      <!-- KVKK -->
+      <div style="font-size:11px;color:var(--text-light);text-align:right;padding-top:8px;border-top:1px solid var(--border);">
+        KVKK Onayı: ✅ ${kvkkTarih}
+      </div>
+    </div>
+  `;
+
+  document.getElementById('gorusmeDetailTitle').textContent = `${c.adsoyad || 'Anonim'} — Görüşme Yanıtı`;
+  document.getElementById('gorusmeDetailContent').innerHTML = html;
+  document.getElementById('gorusmeDetailModal').classList.add('active');
 }
 
 async function exportGorusme() {
