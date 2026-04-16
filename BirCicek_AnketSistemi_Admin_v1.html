@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bir Çiçek Koleji - Anket Sistemi Admin Paneli</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+<style>
+:root {
+  --primary: #2d5f3f;
+  --primary-light: #4a8563;
+  --accent: #d4a574;
+  --bg: #faf7f2;
+  --card: #ffffff;
+  --text: #2c3e2d;
+  --text-light: #6b7c6d;
+  --border: #e8e4dc;
+  --danger: #c0392b;
+  --success: #27ae60;
+  --warning: #e67e22;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+/* Login Screen */
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  padding: 20px;
+}
+.login-box {
+  background: white;
+  padding: 40px;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  width: 100%;
+  max-width: 400px;
+}
+.login-box h1 {
+  color: var(--primary);
+  margin-bottom: 8px;
+  font-size: 24px;
+}
+.login-box p { color: var(--text-light); margin-bottom: 24px; font-size: 14px; }
+.login-box input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+.login-box button {
+  width: 100%;
+  padding: 12px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.login-box button:hover { background: var(--primary-light); }
+.login-error { color: var(--danger); font-size: 13px; margin-top: 8px; text-align: center; }
+
+/* App Layout */
+.app { display: none; min-height: 100vh; }
+.app.active { display: block; }
+
+header {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+header h1 { font-size: 18px; color: var(--primary); }
+header .user-info { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--text-light); }
+header button {
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+nav.tabs {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+}
+nav.tabs button {
+  background: transparent;
+  border: none;
+  padding: 14px 18px;
+  font-size: 14px;
+  color: var(--text-light);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+  font-weight: 500;
+}
+nav.tabs button.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+
+main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Dashboard */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--card);
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+.stat-card .label { font-size: 12px; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-card .value { font-size: 32px; font-weight: 700; color: var(--primary); margin-top: 8px; }
+.stat-card .sub { font-size: 12px; color: var(--text-light); margin-top: 4px; }
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.chart-card {
+  background: var(--card);
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+.chart-card h3 { font-size: 15px; margin-bottom: 16px; color: var(--text); }
+.chart-container { position: relative; height: 300px; }
+
+/* Sections */
+.section {
+  background: var(--card);
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.section-header h2 { font-size: 18px; color: var(--text); }
+.section-header .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Buttons */
+.btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: var(--primary-light); }
+.btn-secondary { background: white; color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--bg); }
+.btn-danger { background: var(--danger); color: white; }
+.btn-success { background: var(--success); color: white; }
+.btn-sm { padding: 6px 10px; font-size: 12px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+table th {
+  text-align: left;
+  padding: 10px 12px;
+  background: var(--bg);
+  font-weight: 600;
+  color: var(--text-light);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+}
+table td { padding: 12px; border-bottom: 1px solid var(--border); }
+table tr:hover { background: var(--bg); }
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.badge-success { background: #d4edda; color: #155724; }
+.badge-warning { background: #fff3cd; color: #856404; }
+.badge-danger { background: #f8d7da; color: #721c24; }
+.badge-info { background: #d1ecf1; color: #0c5460; }
+
+/* Forms */
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text); }
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+}
+.form-group textarea { min-height: 80px; resize: vertical; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* Modals */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 20px;
+  overflow-y: auto;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 600px;
+  padding: 24px;
+}
+.modal h2 { margin-bottom: 16px; color: var(--primary); }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+/* Toggle Switch */
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: #ccc;
+  border-radius: 24px;
+  transition: 0.3s;
+}
+.toggle-slider:before {
+  content: "";
+  position: absolute;
+  height: 18px; width: 18px;
+  left: 3px; bottom: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: 0.3s;
+}
+.toggle input:checked + .toggle-slider { background: var(--primary); }
+.toggle input:checked + .toggle-slider:before { transform: translateX(20px); }
+
+/* Empty states */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-light);
+}
+.empty-state p { font-size: 14px; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .form-row { grid-template-columns: 1fr; }
+  main { padding: 16px; }
+  .chart-grid { grid-template-columns: 1fr; }
+  header { padding: 12px 16px; }
+  header h1 { font-size: 15px; }
+}
+
+.hidden { display: none !important; }
+.loading { text-align: center; padding: 40px; color: var(--text-light); }
+.success-msg { background: #d4edda; color: #155724; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
+.error-msg { background: #f8d7da; color: #721c24; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-box">
+    <h1>🌸 Bir Çiçek Koleji</h1>
+    <p>Anket Sistemi Admin Paneli</p>
+    <input type="email" id="loginEmail" placeholder="E-posta" value="eposta@bircicekkoleji.com">
+    <input type="password" id="loginPassword" placeholder="Şifre">
+    <button onclick="login()">Giriş Yap</button>
+    <div id="loginError" class="login-error hidden"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="app">
+  <header>
+    <h1>🌸 Anket Sistemi - Admin Paneli</h1>
+    <div class="user-info">
+      <span id="userEmail"></span>
+      <button onclick="logout()">Çıkış</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn active" onclick="switchTab('dashboard')">📊 Dashboard</button>
+    <button class="tab-btn" onclick="switchTab('veliler')">👨‍👩‍👧 Kayıtlı Veliler</button>
+    <button class="tab-btn" onclick="switchTab('memnuniyet')">⭐ Memnuniyet Anketleri</button>
+    <button class="tab-btn" onclick="switchTab('gorusme')">🤝 Görüşme Anketleri</button>
+    <button class="tab-btn" onclick="switchTab('public')">🌐 Genel Yayın</button>
+    <button class="tab-btn" onclick="switchTab('kvkk')">⚖️ KVKK & Ayarlar</button>
+  </nav>
+
+  <main>
+    <!-- DASHBOARD -->
+    <div id="tab-dashboard" class="tab-content active">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="label">Kayıtlı Veli</div>
+          <div class="value" id="stat-veli-count">-</div>
+          <div class="sub" id="stat-veli-sub">Toplam aktif veli</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Aktif Memnuniyet Anketi</div>
+          <div class="value" id="stat-memnuniyet-count">-</div>
+          <div class="sub" id="stat-memnuniyet-sub">Yanıt bekleyen</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Görüşme Yanıtları</div>
+          <div class="value" id="stat-gorusme-count">-</div>
+          <div class="sub" id="stat-gorusme-sub">Son 30 gün</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Ortalama Memnuniyet</div>
+          <div class="value" id="stat-ortalama">-</div>
+          <div class="sub">10 üzerinden</div>
+        </div>
+      </div>
+
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h3>Memnuniyet Trendi</h3>
+          <div class="chart-container"><canvas id="chart-memnuniyet-trend"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Görüşme → Kayıt Dönüşümü</h3>
+          <div class="chart-container"><canvas id="chart-conversion"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>NPS Dağılımı (Görüşme)</h3>
+          <div class="chart-container"><canvas id="chart-nps"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Görüşme Yapan Performansı</h3>
+          <div class="chart-container"><canvas id="chart-gorusmeci"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KAYITLI VELİLER -->
+    <div id="tab-veliler" class="tab-content">
+      <div class="section">
+        <div class="section-header">
+          <h2>Kayıtlı Veli Listesi (Whitelist)</h2>
+          <div class="actions">
+            <button class="btn btn-secondary" onclick="openImportModal()">📥 Toplu İçe Aktar</button>
+            <button class="btn btn-primary" onclick="openVeliModal()">+ Yeni Veli Ekle</button>
+          </div>
+        </div>
+        <div id="veliler-list">
+          <div class="loading">Yükleniyor...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MEMNUNIYET ANKETLERI -->
+    <div id="tab-memnuniyet" class="tab-content">
+      <div class="section">
+        <div class="section-header">
+          <h2>Memnuniyet Anketi Kampanyaları</h2>
+          <div class="actions">
+            <button class="btn btn-primary" onclick="openKampanyaModal()">+ Yeni Kampanya</button>
+          </div>
+        </div>
+        <div id="kampanya-list">
+          <div class="empty-state">
+            <p>Henüz kampanya yok. "Yeni Kampanya" ile başlayın.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GÖRÜŞME ANKETLERI -->
+    <div id="tab-gorusme" class="tab-content">
+      <div class="section">
+        <div class="section-header">
+          <h2>Görüşme Sonrası Anket Yanıtları</h2>
+          <div class="actions">
+            <button class="btn btn-secondary" onclick="exportGorusme()">📊 CSV İndir</button>
+            <button class="btn btn-secondary" onclick="filterGorusme('all')">Tümü</button>
+            <button class="btn btn-secondary" onclick="filterGorusme('pending')">Doğrulama Bekleyen</button>
+            <button class="btn btn-secondary" onclick="filterGorusme('verified')">Doğrulanmış</button>
+          </div>
+        </div>
+        <div id="gorusme-list">
+          <div class="empty-state">
+            <p>Henüz görüşme yanıtı yok.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PUBLIC YAYIN -->
+    <div id="tab-public" class="tab-content">
+      <div class="section">
+        <div class="section-header">
+          <h2>Genel Yayın Kontrolü</h2>
+        </div>
+        <p style="color: var(--text-light); font-size: 13px; margin-bottom: 16px;">
+          Buradan hangi anket sonuçlarının <strong>anket.bircicekkoleji.com/sonuclar</strong> adresinde herkese açık olacağını belirleyebilirsiniz.
+        </p>
+        <div id="public-list">
+          <div class="empty-state">
+            <p>Önce memnuniyet veya görüşme anketi sonuçları oluşsun.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KVKK & AYARLAR -->
+    <div id="tab-kvkk" class="tab-content">
+      <div class="section">
+        <div class="section-header">
+          <h2>KVKK Aydınlatma Metni</h2>
+          <div class="actions">
+            <button class="btn btn-primary" onclick="saveKvkk()">💾 Kaydet</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Görüşme Anketi KVKK Metni (bu metin anket sayfasında gösterilecek)</label>
+          <textarea id="kvkk-gorusme" style="min-height: 400px; font-family: monospace; font-size: 12px;"></textarea>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2>EmailJS Ayarları</h2>
+          <div class="actions">
+            <button class="btn btn-primary" onclick="saveSettings()">💾 Kaydet</button>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Service ID</label>
+            <input type="text" id="set-service-id" placeholder="BirCicek_Mail">
+          </div>
+          <div class="form-group">
+            <label>Public Key</label>
+            <input type="text" id="set-public-key" placeholder="_VnABdAj03KuoOHYM">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Anket Davetiye Template ID</label>
+          <input type="text" id="set-template-anket" placeholder="template_anket_davet">
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL: Yeni Veli -->
+<div id="veliModal" class="modal-overlay">
+  <div class="modal">
+    <h2 id="veliModalTitle">Yeni Veli Ekle</h2>
+    <input type="hidden" id="veli-id">
+    <div class="form-group">
+      <label>Veli Ad Soyad *</label>
+      <input type="text" id="veli-adsoyad">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>E-posta *</label>
+        <input type="email" id="veli-email">
+      </div>
+      <div class="form-group">
+        <label>Telefon</label>
+        <input type="tel" id="veli-telefon">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Çocuk(lar)ının Bilgileri</label>
+      <div id="cocuk-list"></div>
+      <button class="btn btn-sm btn-secondary" onclick="addCocukField()" style="margin-top: 8px;">+ Çocuk Ekle</button>
+    </div>
+    <div class="form-group">
+      <label>Durum</label>
+      <select id="veli-durum">
+        <option value="aktif">Aktif</option>
+        <option value="pasif">Pasif (ayrılmış)</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('veliModal')">İptal</button>
+      <button class="btn btn-primary" onclick="saveVeli()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Toplu İçe Aktar -->
+<div id="importModal" class="modal-overlay">
+  <div class="modal">
+    <h2>Toplu Veli İçe Aktar</h2>
+    <p style="font-size: 13px; color: var(--text-light); margin-bottom: 16px;">
+      Her satıra bir veli, şu formatta: <code>Ad Soyad; email; telefon; Çocuk Adı (yaş)</code>
+    </p>
+    <div class="form-group">
+      <textarea id="import-text" style="min-height: 200px; font-family: monospace;" placeholder="Ayşe Yılmaz; ayse@example.com; 05551234567; Elif (4)
+Mehmet Kaya; mehmet@example.com; 05557654321; Ali (5), Zeynep (3)"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('importModal')">İptal</button>
+      <button class="btn btn-primary" onclick="bulkImport()">İçe Aktar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Yeni Kampanya -->
+<div id="kampanyaModal" class="modal-overlay">
+  <div class="modal">
+    <h2>Yeni Memnuniyet Anketi Kampanyası</h2>
+    <div class="form-group">
+      <label>Kampanya Adı *</label>
+      <input type="text" id="kampanya-ad" placeholder="2026 Yıl Sonu Memnuniyet Anketi">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Başlangıç Tarihi</label>
+        <input type="date" id="kampanya-baslangic">
+      </div>
+      <div class="form-group">
+        <label>Bitiş Tarihi</label>
+        <input type="date" id="kampanya-bitis">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Açıklama (velilere gösterilecek)</label>
+      <textarea id="kampanya-aciklama" placeholder="Değerli velilerimiz, görüşlerinizi öğrenmek için..."></textarea>
+    </div>
+    <div class="form-group">
+      <label>
+        <input type="checkbox" id="kampanya-sendmail" checked>
+        Oluşturunca tüm velilere e-posta davetiyesi gönder
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('kampanyaModal')">İptal</button>
+      <button class="btn btn-primary" onclick="saveKampanya()">Kampanyayı Oluştur</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// FIREBASE CONFIG - BCKA-Site
+// ============================================================
+const firebaseConfig = {
+  // BURAYA BCKA-Site config bilgileri gelecek
+  apiKey: "YOUR_API_KEY",
+  authDomain: "bcka-site.firebaseapp.com",
+  projectId: "bcka-site",
+  storageBucket: "bcka-site.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// Authorized admin emails
+const ADMIN_EMAILS = ['eposta@bircicekkoleji.com', 'emrahby@gmail.com'];
+
+// ============================================================
+// AUTH
+// ============================================================
+function login() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errorEl = document.getElementById('loginError');
+  errorEl.classList.add('hidden');
+
+  if (!ADMIN_EMAILS.includes(email)) {
+    errorEl.textContent = 'Bu e-posta adresi admin yetkisine sahip değil.';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  auth.signInWithEmailAndPassword(email, password)
+    .then(() => {
+      showApp();
+    })
+    .catch(err => {
+      errorEl.textContent = 'Giriş başarısız: ' + err.message;
+      errorEl.classList.remove('hidden');
+    });
+}
+
+function logout() {
+  auth.signOut().then(() => {
+    document.getElementById('app').classList.remove('active');
+    document.getElementById('loginScreen').style.display = 'flex';
+  });
+}
+
+auth.onAuthStateChanged(user => {
+  if (user && ADMIN_EMAILS.includes(user.email)) {
+    showApp();
+  }
+});
+
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').classList.add('active');
+  document.getElementById('userEmail').textContent = auth.currentUser.email;
+  loadDashboard();
+  loadVeliler();
+  loadKampanyalar();
+  loadGorusmeler();
+  loadSettings();
+}
+
+// ============================================================
+// TAB NAVIGATION
+// ============================================================
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+async function loadDashboard() {
+  try {
+    const veliSnap = await db.collection('kayitli_veliler').where('durum', '==', 'aktif').get();
+    document.getElementById('stat-veli-count').textContent = veliSnap.size;
+
+    const kampanyaSnap = await db.collection('anket_kampanyalari').where('aktif', '==', true).get();
+    document.getElementById('stat-memnuniyet-count').textContent = kampanyaSnap.size;
+
+    const gorusmeSnap = await db.collection('gorusme_yanitlari').get();
+    const son30gun = gorusmeSnap.docs.filter(d => {
+      const t = d.data().tarih?.toDate?.() || new Date(d.data().tarih);
+      return (Date.now() - t.getTime()) < 30 * 24 * 60 * 60 * 1000;
+    });
+    document.getElementById('stat-gorusme-count').textContent = son30gun.length;
+
+    // Memnuniyet ortalama
+    let toplamPuan = 0, sayiPuan = 0;
+    for (const k of kampanyaSnap.docs) {
+      const yanitlar = await db.collection('anket_kampanyalari').doc(k.id).collection('yanitlar').get();
+      yanitlar.forEach(y => {
+        const puan = y.data().cevaplar?.memnuniyet_genel;
+        if (typeof puan === 'number') { toplamPuan += puan; sayiPuan++; }
+      });
+    }
+    document.getElementById('stat-ortalama').textContent = sayiPuan > 0 ? (toplamPuan / sayiPuan).toFixed(1) : '-';
+
+    renderCharts(gorusmeSnap.docs);
+  } catch (err) {
+    console.error('Dashboard yükleme hatası:', err);
+  }
+}
+
+function renderCharts(gorusmeDocs) {
+  // Memnuniyet trendi (placeholder)
+  new Chart(document.getElementById('chart-memnuniyet-trend'), {
+    type: 'line',
+    data: {
+      labels: ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz'],
+      datasets: [{
+        label: 'Ortalama Memnuniyet',
+        data: [8.2, 8.5, 8.4, 8.7, 8.9, 9.1],
+        borderColor: '#2d5f3f',
+        backgroundColor: 'rgba(45,95,63,0.1)',
+        tension: 0.3,
+        fill: true
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 10 } } }
+  });
+
+  // Conversion
+  const kayitOlan = gorusmeDocs.filter(d => d.data().cevaplar?.kayit_niyeti === 'evet').length;
+  const kararsiz = gorusmeDocs.filter(d => d.data().cevaplar?.kayit_niyeti === 'kararsiz').length;
+  const olmayan = gorusmeDocs.filter(d => d.data().cevaplar?.kayit_niyeti === 'hayir').length;
+
+  new Chart(document.getElementById('chart-conversion'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Kayıt Olacak', 'Kararsız', 'Kayıt Olmayacak'],
+      datasets: [{
+        data: [kayitOlan || 1, kararsiz || 1, olmayan || 1],
+        backgroundColor: ['#27ae60', '#e67e22', '#c0392b']
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+
+  // NPS
+  const nps = [0,0,0,0,0,0,0,0,0,0,0];
+  gorusmeDocs.forEach(d => {
+    const s = d.data().cevaplar?.nps;
+    if (typeof s === 'number' && s >= 0 && s <= 10) nps[s]++;
+  });
+  new Chart(document.getElementById('chart-nps'), {
+    type: 'bar',
+    data: {
+      labels: ['0','1','2','3','4','5','6','7','8','9','10'],
+      datasets: [{
+        label: 'Yanıt Sayısı',
+        data: nps,
+        backgroundColor: nps.map((_,i) => i <= 6 ? '#c0392b' : i <= 8 ? '#e67e22' : '#27ae60')
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+
+  // Görüşmeci performansı
+  const gorusmeciler = {};
+  gorusmeDocs.forEach(d => {
+    const g = d.data().cevaplar?.gorusmeci || 'Bilinmiyor';
+    const p = d.data().cevaplar?.memnuniyet_gorusme;
+    if (!gorusmeciler[g]) gorusmeciler[g] = { total: 0, count: 0 };
+    if (typeof p === 'number') { gorusmeciler[g].total += p; gorusmeciler[g].count++; }
+  });
+  const labels = Object.keys(gorusmeciler);
+  const data = labels.map(l => gorusmeciler[l].count > 0 ? (gorusmeciler[l].total / gorusmeciler[l].count).toFixed(1) : 0);
+  new Chart(document.getElementById('chart-gorusmeci'), {
+    type: 'bar',
+    data: {
+      labels: labels.length ? labels : ['Henüz veri yok'],
+      datasets: [{ label: 'Ortalama Puan', data: data.length ? data : [0], backgroundColor: '#4a8563' }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', scales: { x: { min: 0, max: 10 } } }
+  });
+}
+
+// ============================================================
+// KAYITLI VELİLER
+// ============================================================
+let cocukCounter = 0;
+
+async function loadVeliler() {
+  try {
+    const snap = await db.collection('kayitli_veliler').orderBy('adsoyad').get();
+    const container = document.getElementById('veliler-list');
+    if (snap.empty) {
+      container.innerHTML = '<div class="empty-state"><p>Henüz kayıtlı veli yok. "Yeni Veli Ekle" veya "Toplu İçe Aktar" ile başlayın.</p></div>';
+      return;
+    }
+    let html = '<table><thead><tr><th>Ad Soyad</th><th>E-posta</th><th>Telefon</th><th>Çocuk(lar)</th><th>Durum</th><th>İşlem</th></tr></thead><tbody>';
+    snap.forEach(doc => {
+      const v = doc.data();
+      const cocuklar = (v.cocuklar || []).map(c => `${c.ad} (${c.yas})`).join(', ');
+      const badge = v.durum === 'aktif' ? 'badge-success' : 'badge-warning';
+      html += `<tr>
+        <td>${v.adsoyad}</td>
+        <td>${v.email}</td>
+        <td>${v.telefon || '-'}</td>
+        <td>${cocuklar || '-'}</td>
+        <td><span class="badge ${badge}">${v.durum}</span></td>
+        <td>
+          <button class="btn btn-sm btn-secondary" onclick="editVeli('${doc.id}')">Düzenle</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteVeli('${doc.id}')">Sil</button>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function openVeliModal() {
+  document.getElementById('veliModalTitle').textContent = 'Yeni Veli Ekle';
+  document.getElementById('veli-id').value = '';
+  document.getElementById('veli-adsoyad').value = '';
+  document.getElementById('veli-email').value = '';
+  document.getElementById('veli-telefon').value = '';
+  document.getElementById('veli-durum').value = 'aktif';
+  document.getElementById('cocuk-list').innerHTML = '';
+  cocukCounter = 0;
+  addCocukField();
+  document.getElementById('veliModal').classList.add('active');
+}
+
+function addCocukField(ad = '', yas = '') {
+  cocukCounter++;
+  const html = `
+    <div id="cocuk-${cocukCounter}" class="form-row" style="margin-bottom: 8px;">
+      <input type="text" placeholder="Çocuk Adı" class="cocuk-ad" value="${ad}">
+      <div style="display: flex; gap: 4px;">
+        <input type="number" placeholder="Yaş" class="cocuk-yas" value="${yas}" min="0" max="18">
+        <button class="btn btn-sm btn-danger" onclick="document.getElementById('cocuk-${cocukCounter}').remove()">✕</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('cocuk-list').insertAdjacentHTML('beforeend', html);
+}
+
+async function saveVeli() {
+  const id = document.getElementById('veli-id').value;
+  const adsoyad = document.getElementById('veli-adsoyad').value.trim();
+  const email = document.getElementById('veli-email').value.trim().toLowerCase();
+  const telefon = document.getElementById('veli-telefon').value.trim();
+  const durum = document.getElementById('veli-durum').value;
+
+  if (!adsoyad || !email) { alert('Ad soyad ve e-posta zorunlu.'); return; }
+
+  const cocuklar = [];
+  document.querySelectorAll('#cocuk-list > div').forEach(row => {
+    const ad = row.querySelector('.cocuk-ad').value.trim();
+    const yas = parseInt(row.querySelector('.cocuk-yas').value);
+    if (ad) cocuklar.push({ ad, yas: yas || 0 });
+  });
+
+  const data = { adsoyad, email, telefon, cocuklar, durum, guncelleme: firebase.firestore.FieldValue.serverTimestamp() };
+
+  try {
+    if (id) {
+      await db.collection('kayitli_veliler').doc(id).update(data);
+    } else {
+      data.olusturma = firebase.firestore.FieldValue.serverTimestamp();
+      await db.collection('kayitli_veliler').add(data);
+    }
+    closeModal('veliModal');
+    loadVeliler();
+    loadDashboard();
+  } catch (err) {
+    alert('Hata: ' + err.message);
+  }
+}
+
+async function editVeli(id) {
+  const doc = await db.collection('kayitli_veliler').doc(id).get();
+  const v = doc.data();
+  document.getElementById('veliModalTitle').textContent = 'Veli Düzenle';
+  document.getElementById('veli-id').value = id;
+  document.getElementById('veli-adsoyad').value = v.adsoyad;
+  document.getElementById('veli-email').value = v.email;
+  document.getElementById('veli-telefon').value = v.telefon || '';
+  document.getElementById('veli-durum').value = v.durum;
+  document.getElementById('cocuk-list').innerHTML = '';
+  cocukCounter = 0;
+  (v.cocuklar || []).forEach(c => addCocukField(c.ad, c.yas));
+  if (!(v.cocuklar || []).length) addCocukField();
+  document.getElementById('veliModal').classList.add('active');
+}
+
+async function deleteVeli(id) {
+  if (!confirm('Bu veliyi silmek istediğinize emin misiniz?')) return;
+  await db.collection('kayitli_veliler').doc(id).delete();
+  loadVeliler();
+  loadDashboard();
+}
+
+function openImportModal() {
+  document.getElementById('import-text').value = '';
+  document.getElementById('importModal').classList.add('active');
+}
+
+async function bulkImport() {
+  const text = document.getElementById('import-text').value.trim();
+  if (!text) return;
+  const lines = text.split('\n').filter(l => l.trim());
+  let eklendi = 0, hata = 0;
+  for (const line of lines) {
+    const parts = line.split(';').map(p => p.trim());
+    if (parts.length < 2) { hata++; continue; }
+    const [adsoyad, email, telefon = '', cocuklarStr = ''] = parts;
+    const cocuklar = cocuklarStr.split(',').map(c => {
+      const m = c.match(/(.+?)\s*\((\d+)\)/);
+      return m ? { ad: m[1].trim(), yas: parseInt(m[2]) } : null;
+    }).filter(Boolean);
+    try {
+      await db.collection('kayitli_veliler').add({
+        adsoyad, email: email.toLowerCase(), telefon, cocuklar,
+        durum: 'aktif',
+        olusturma: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      eklendi++;
+    } catch { hata++; }
+  }
+  alert(`${eklendi} veli eklendi, ${hata} hata.`);
+  closeModal('importModal');
+  loadVeliler();
+  loadDashboard();
+}
+
+// ============================================================
+// MEMNUNİYET KAMPANYALARI
+// ============================================================
+async function loadKampanyalar() {
+  try {
+    const snap = await db.collection('anket_kampanyalari').orderBy('olusturma', 'desc').get();
+    const container = document.getElementById('kampanya-list');
+    if (snap.empty) {
+      container.innerHTML = '<div class="empty-state"><p>Henüz kampanya yok.</p></div>';
+      return;
+    }
+    let html = '<table><thead><tr><th>Kampanya</th><th>Tarih Aralığı</th><th>Durum</th><th>Gönderilen / Yanıt</th><th>Ortalama</th><th>İşlem</th></tr></thead><tbody>';
+    for (const doc of snap.docs) {
+      const k = doc.data();
+      const tokens = await db.collection('anket_kampanyalari').doc(doc.id).collection('tokens').get();
+      const yanitlar = await db.collection('anket_kampanyalari').doc(doc.id).collection('yanitlar').get();
+      let toplam = 0, sayi = 0;
+      yanitlar.forEach(y => {
+        const p = y.data().cevaplar?.memnuniyet_genel;
+        if (typeof p === 'number') { toplam += p; sayi++; }
+      });
+      const ortalama = sayi > 0 ? (toplam / sayi).toFixed(1) : '-';
+      const badge = k.aktif ? 'badge-success' : 'badge-warning';
+      html += `<tr>
+        <td><strong>${k.ad}</strong></td>
+        <td>${k.baslangic} → ${k.bitis}</td>
+        <td><span class="badge ${badge}">${k.aktif ? 'Aktif' : 'Kapalı'}</span></td>
+        <td>${tokens.size} / ${yanitlar.size}</td>
+        <td>${ortalama}</td>
+        <td>
+          <button class="btn btn-sm btn-secondary" onclick="viewKampanya('${doc.id}')">Detay</button>
+          <button class="btn btn-sm btn-secondary" onclick="toggleKampanya('${doc.id}', ${!k.aktif})">${k.aktif ? 'Kapat' : 'Aç'}</button>
+        </td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function openKampanyaModal() {
+  document.getElementById('kampanya-ad').value = '';
+  const today = new Date().toISOString().split('T')[0];
+  const nextMonth = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  document.getElementById('kampanya-baslangic').value = today;
+  document.getElementById('kampanya-bitis').value = nextMonth;
+  document.getElementById('kampanya-aciklama').value = '';
+  document.getElementById('kampanyaModal').classList.add('active');
+}
+
+async function saveKampanya() {
+  const ad = document.getElementById('kampanya-ad').value.trim();
+  const baslangic = document.getElementById('kampanya-baslangic').value;
+  const bitis = document.getElementById('kampanya-bitis').value;
+  const aciklama = document.getElementById('kampanya-aciklama').value;
+  const sendmail = document.getElementById('kampanya-sendmail').checked;
+
+  if (!ad) { alert('Kampanya adı gerekli.'); return; }
+
+  try {
+    const veliler = await db.collection('kayitli_veliler').where('durum', '==', 'aktif').get();
+    if (veliler.empty) { alert('Aktif veli bulunamadı.'); return; }
+
+    const ref = await db.collection('anket_kampanyalari').add({
+      ad, baslangic, bitis, aciklama, aktif: true,
+      olusturma: firebase.firestore.FieldValue.serverTimestamp(),
+      toplam_davet: veliler.size
+    });
+
+    // Her veli için anonim token oluştur
+    const batch = db.batch();
+    const tokens = [];
+    veliler.forEach(v => {
+      const token = Math.random().toString(36).substring(2, 10);
+      const tokenRef = ref.collection('tokens').doc(token);
+      batch.set(tokenRef, { kullanildi: false, olusturma: firebase.firestore.FieldValue.serverTimestamp() });
+      tokens.push({ email: v.data().email, token, adsoyad: v.data().adsoyad });
+    });
+    await batch.commit();
+
+    // E-posta gönder (EmailJS)
+    if (sendmail) {
+      const settings = await db.collection('ayarlar').doc('emailjs').get();
+      const s = settings.exists ? settings.data() : {};
+      if (s.public_key) emailjs.init(s.public_key);
+      let gonderildi = 0;
+      for (const t of tokens) {
+        try {
+          await emailjs.send(s.service_id, s.template_anket, {
+            to_email: t.email, to_name: t.adsoyad,
+            kampanya_ad: ad,
+            anket_url: `https://anket.bircicekkoleji.com/m/${t.token}`
+          });
+          gonderildi++;
+        } catch (e) { console.error('Mail hatası:', e); }
+      }
+      alert(`Kampanya oluşturuldu. ${gonderildi}/${tokens.length} e-posta gönderildi.`);
+    } else {
+      alert(`Kampanya oluşturuldu. ${tokens.length} token üretildi.`);
+    }
+
+    closeModal('kampanyaModal');
+    loadKampanyalar();
+    loadDashboard();
+  } catch (err) {
+    alert('Hata: ' + err.message);
+  }
+}
+
+async function toggleKampanya(id, yeniDurum) {
+  await db.collection('anket_kampanyalari').doc(id).update({ aktif: yeniDurum });
+  loadKampanyalar();
+}
+
+async function viewKampanya(id) {
+  // TODO: detay modal - v2
+  alert('Detay görünümü v2 sürümünde eklenecek.');
+}
+
+// ============================================================
+// GÖRÜŞME YANITLARI
+// ============================================================
+let gorusmeFilter = 'all';
+
+async function loadGorusmeler() {
+  try {
+    const snap = await db.collection('gorusme_yanitlari').orderBy('tarih', 'desc').get();
+    renderGorusmeler(snap.docs);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function filterGorusme(type) {
+  gorusmeFilter = type;
+  loadGorusmeler();
+}
+
+function renderGorusmeler(docs) {
+  const filtered = docs.filter(d => {
+    const v = d.data().dogrulandi;
+    if (gorusmeFilter === 'pending') return !v;
+    if (gorusmeFilter === 'verified') return v;
+    return true;
+  });
+
+  const container = document.getElementById('gorusme-list');
+  if (!filtered.length) {
+    container.innerHTML = '<div class="empty-state"><p>Yanıt yok.</p></div>';
+    return;
+  }
+
+  let html = '<table><thead><tr><th>Tarih</th><th>Ad Soyad</th><th>Çocuk</th><th>Memnuniyet</th><th>Kayıt Niyeti</th><th>Durum</th><th>İşlem</th></tr></thead><tbody>';
+  filtered.forEach(doc => {
+    const d = doc.data();
+    const c = d.cevaplar || {};
+    const tarih = d.tarih?.toDate?.() ? d.tarih.toDate().toLocaleDateString('tr-TR') : '-';
+    const badge = d.dogrulandi ? 'badge-success' : 'badge-warning';
+    const niyetBadge = c.kayit_niyeti === 'evet' ? 'badge-success' : c.kayit_niyeti === 'hayir' ? 'badge-danger' : 'badge-warning';
+    html += `<tr>
+      <td>${tarih}</td>
+      <td>${c.adsoyad || '-'}</td>
+      <td>${c.cocuk_ad || '-'} (${c.cocuk_yas || '-'})</td>
+      <td>${c.memnuniyet_genel ?? '-'}/10</td>
+      <td><span class="badge ${niyetBadge}">${c.kayit_niyeti || '-'}</span></td>
+      <td><span class="badge ${badge}">${d.dogrulandi ? 'Doğrulandı' : 'Bekliyor'}</span></td>
+      <td>
+        <button class="btn btn-sm btn-secondary" onclick="viewGorusme('${doc.id}')">Görüntüle</button>
+        ${!d.dogrulandi ? `<button class="btn btn-sm btn-success" onclick="verifyGorusme('${doc.id}', true)">✓</button><button class="btn btn-sm btn-danger" onclick="verifyGorusme('${doc.id}', false)">✕</button>` : ''}
+      </td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+async function verifyGorusme(id, valid) {
+  if (!valid) {
+    if (!confirm('Bu yanıtı silmek istiyor musunuz? (Alakasız kişi)')) return;
+    await db.collection('gorusme_yanitlari').doc(id).delete();
+  } else {
+    await db.collection('gorusme_yanitlari').doc(id).update({ dogrulandi: true, dogrulayan: auth.currentUser.email, dogrulama_tarihi: firebase.firestore.FieldValue.serverTimestamp() });
+  }
+  loadGorusmeler();
+  loadDashboard();
+}
+
+async function viewGorusme(id) {
+  const doc = await db.collection('gorusme_yanitlari').doc(id).get();
+  const d = doc.data();
+  const c = d.cevaplar || {};
+  let metin = `📅 Tarih: ${d.tarih?.toDate?.()?.toLocaleString('tr-TR') || '-'}\n\n`;
+  metin += `👤 ${c.adsoyad || '-'}\n📧 ${c.email || '-'}\n📞 ${c.telefon || '-'}\n👶 ${c.cocuk_ad || '-'} (${c.cocuk_yas || '-'} yaş)\n\n`;
+  metin += `🤝 Görüşmeci: ${c.gorusmeci || '-'}\n📅 Görüşme Tarihi: ${c.gorusme_tarihi || '-'}\n\n`;
+  metin += `⭐ Genel Memnuniyet: ${c.memnuniyet_genel ?? '-'}/10\n🤝 Görüşme Memnuniyeti: ${c.memnuniyet_gorusme ?? '-'}/10\n📊 NPS: ${c.nps ?? '-'}/10\n\n`;
+  metin += `👍 Olumlu:\n${c.olumlu || '-'}\n\n👎 Geliştirilebilir:\n${c.gelistirilebilir || '-'}\n\n💡 Öneriler:\n${c.oneri || '-'}\n\n🎯 Kayıt Niyeti: ${c.kayit_niyeti || '-'}\n`;
+  alert(metin);
+}
+
+async function exportGorusme() {
+  const snap = await db.collection('gorusme_yanitlari').get();
+  let csv = 'Tarih;Ad Soyad;E-posta;Telefon;Çocuk;Yaş;Görüşmeci;Görüşme Tarihi;Genel Memnuniyet;Görüşme Memnuniyeti;NPS;Olumlu;Geliştirilebilir;Öneri;Kayıt Niyeti;Doğrulandı\n';
+  snap.forEach(doc => {
+    const d = doc.data();
+    const c = d.cevaplar || {};
+    const tarih = d.tarih?.toDate?.()?.toLocaleDateString('tr-TR') || '-';
+    csv += `"${tarih}";"${c.adsoyad||''}";"${c.email||''}";"${c.telefon||''}";"${c.cocuk_ad||''}";"${c.cocuk_yas||''}";"${c.gorusmeci||''}";"${c.gorusme_tarihi||''}";${c.memnuniyet_genel||''};${c.memnuniyet_gorusme||''};${c.nps||''};"${(c.olumlu||'').replace(/"/g,'""')}";"${(c.gelistirilebilir||'').replace(/"/g,'""')}";"${(c.oneri||'').replace(/"/g,'""')}";"${c.kayit_niyeti||''}";${d.dogrulandi?'Evet':'Hayır'}\n`;
+  });
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `gorusme_yanitlari_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+}
+
+// ============================================================
+// KVKK & AYARLAR
+// ============================================================
+async function loadSettings() {
+  try {
+    const kvkk = await db.collection('ayarlar').doc('kvkk').get();
+    if (kvkk.exists) {
+      document.getElementById('kvkk-gorusme').value = kvkk.data().gorusme_metni || DEFAULT_KVKK;
+    } else {
+      document.getElementById('kvkk-gorusme').value = DEFAULT_KVKK;
+    }
+    const es = await db.collection('ayarlar').doc('emailjs').get();
+    if (es.exists) {
+      const s = es.data();
+      document.getElementById('set-service-id').value = s.service_id || '';
+      document.getElementById('set-public-key').value = s.public_key || '';
+      document.getElementById('set-template-anket').value = s.template_anket || '';
+    }
+  } catch (err) { console.error(err); }
+}
+
+async function saveKvkk() {
+  const metin = document.getElementById('kvkk-gorusme').value;
+  await db.collection('ayarlar').doc('kvkk').set({ gorusme_metni: metin, guncelleme: firebase.firestore.FieldValue.serverTimestamp() });
+  alert('KVKK metni kaydedildi.');
+}
+
+async function saveSettings() {
+  await db.collection('ayarlar').doc('emailjs').set({
+    service_id: document.getElementById('set-service-id').value.trim(),
+    public_key: document.getElementById('set-public-key').value.trim(),
+    template_anket: document.getElementById('set-template-anket').value.trim(),
+  });
+  alert('Ayarlar kaydedildi.');
+}
+
+// ============================================================
+// MODAL HELPERS
+// ============================================================
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+// ============================================================
+// DEFAULT KVKK METNİ
+// ============================================================
+const DEFAULT_KVKK = `BİR ÇİÇEK KOLEJİ ANAOKULU
+KİŞİSEL VERİLERİN KORUNMASI KANUNU (KVKK)
+AYDINLATMA METNİ
+
+(Görüşme Sonrası Memnuniyet Anketi)
+
+1. VERİ SORUMLUSU
+6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") uyarınca veri sorumlusu sıfatıyla hareket eden Bir Çiçek Koleji Anaokulu (bundan böyle "Okul" olarak anılacaktır), kişisel verilerinizin korunmasına önem vermekte ve bu kapsamda işbu aydınlatma metnini sizlere sunmaktadır.
+
+İletişim Bilgileri:
+Adres: Aydınlı Mah. Bahçeler Sk. No:45 Tuzla İstanbul
+E-posta: eposta@bircicekkoleji.com
+Telefon: 0216 393 54 57
+
+2. İŞLENEN KİŞİSEL VERİLERİN KATEGORİLERİ
+Bu anket kapsamında aşağıdaki kişisel verileriniz işlenmektedir:
+- Kimlik Bilgileri: Ad, soyad
+- İletişim Bilgileri: E-posta adresi, telefon numarası
+- Çocuğa Ait Bilgiler: Çocuğun adı, yaşı
+- Görüşmeye İlişkin Bilgiler: Görüşme tarihi, görüşmeyi yapan personel
+- Görüş ve Değerlendirme Bilgileri: Anket sorularına verdiğiniz cevaplar, memnuniyet puanları, yazılı yorumlar
+
+3. KİŞİSEL VERİLERİN İŞLENME AMAÇLARI
+Kişisel verileriniz aşağıdaki amaçlarla işlenmektedir:
+a) Görüşme sürecinizin değerlendirilmesi ve kalitesinin artırılması,
+b) Okulumuzun hizmet kalitesinin geliştirilmesi ve iyileştirilmesi,
+c) Aile memnuniyetinin ölçülmesi ve analiz edilmesi,
+d) Geri bildirimlerinize istinaden gerekli iyileştirmelerin yapılması,
+e) Anket sonuçlarının istatistiksel olarak analiz edilmesi,
+f) Tarafınızla sonraki iletişimlerin sağlanması (talep etmeniz halinde),
+g) Yasal yükümlülüklerin yerine getirilmesi.
+
+4. KİŞİSEL VERİLERİN İŞLENMESİNİN HUKUKİ SEBEBİ
+Kişisel verileriniz, KVKK'nın 5. maddesinde belirtilen aşağıdaki hukuki sebeplere dayanılarak işlenmektedir:
+- Açık rızanızın bulunması (KVKK m.5/1),
+- Bir hakkın tesisi, kullanılması veya korunması için zorunlu olması (KVKK m.5/2-e),
+- İlgili kişinin temel hak ve özgürlüklerine zarar vermemek kaydıyla, veri sorumlusunun meşru menfaatleri için zorunlu olması (KVKK m.5/2-f).
+
+5. KİŞİSEL VERİLERİN AKTARILMASI
+Kişisel verileriniz, yukarıda belirtilen amaçlarla sınırlı olmak üzere:
+- Yalnızca okulumuz yönetimi ve yetkili personeli ile paylaşılır.
+- Üçüncü taraflara satılmaz, pazarlama amaçlı kullanılmaz.
+- Yasal zorunluluklar saklı kalmak kaydıyla yurt içi veya yurt dışına aktarılmaz.
+- Anket altyapısı için kullandığımız Google Firebase hizmetleri aracılığıyla AB içerisinde sunucularda saklanabilir.
+
+6. KİŞİSEL VERİLERİN TOPLANMA YÖNTEMİ
+Kişisel verileriniz, anket.bircicekkoleji.com adresindeki dijital anket formu aracılığıyla, tarafınızca doğrudan ve rızanızla girilerek toplanmaktadır.
+
+7. KİŞİSEL VERİLERİN SAKLANMA SÜRESİ
+Kişisel verileriniz, işlenme amaçlarının ortadan kalkmasının ardından en fazla 3 (üç) yıl süreyle saklanır. Bu sürenin sonunda verileriniz silinir, yok edilir veya anonim hale getirilir. Anonimleştirilmiş istatistiksel veriler süresiz olarak saklanabilir.
+
+8. KVKK KAPSAMINDAKİ HAKLARINIZ
+KVKK'nın 11. maddesi uyarınca ilgili kişi olarak aşağıdaki haklara sahipsiniz:
+a) Kişisel verilerinizin işlenip işlenmediğini öğrenme,
+b) Kişisel verileriniz işlenmişse buna ilişkin bilgi talep etme,
+c) Kişisel verilerinizin işlenme amacını ve bunların amacına uygun kullanılıp kullanılmadığını öğrenme,
+ç) Yurt içinde veya yurt dışında kişisel verilerinizin aktarıldığı üçüncü kişileri bilme,
+d) Kişisel verilerinizin eksik veya yanlış işlenmiş olması hâlinde bunların düzeltilmesini isteme,
+e) Kişisel verilerinizin silinmesini veya yok edilmesini isteme,
+f) (d) ve (e) bentleri uyarınca yapılan işlemlerin, kişisel verilerinizin aktarıldığı üçüncü kişilere bildirilmesini isteme,
+g) İşlenen verilerin münhasıran otomatik sistemler vasıtasıyla analiz edilmesi suretiyle aleyhinize bir sonucun ortaya çıkmasına itiraz etme,
+ğ) Kişisel verilerinizin kanuna aykırı olarak işlenmesi sebebiyle zarara uğramanız hâlinde zararın giderilmesini talep etme.
+
+Bu haklarınızı kullanmak için eposta@bircicekkoleji.com adresine yazılı başvuruda bulunabilirsiniz.
+
+9. AÇIK RIZA BEYANI
+Bu anketi doldurarak:
+- Yukarıda belirtilen kişisel verilerimin, belirtilen amaçlarla ve kapsam dahilinde işlenmesine,
+- İşbu Aydınlatma Metnini okuyup anladığıma,
+açık rıza verdiğimi beyan ederim.
+
+Son güncelleme: [TARİH GİRİLECEK]
+Versiyon: 1.0`;
+</script>
+</body>
+</html>
